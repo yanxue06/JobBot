@@ -1,43 +1,65 @@
-from scraper import scrape_static, scrape_dynamic
-import json 
+
+from dotenv import load_dotenv
+from IndeedScraper import *
+
+load_dotenv()
+
+"""
+List of countries url.
+"""
+nigeria = 'https://ng.indeed.com'
+united_kingdom = 'https://uk.indeed.com'
+united_states = 'https://www.indeed.com'
+canada = 'https://ca.indeed.com'
+germany = 'https://de.indeed.com'
+australia = 'https://au.indeed.com'
+south_africa = 'https://za.indeed.com'
+sweden = 'https://se.indeed.com'
+singapore = 'https://www.indeed.com.sg'
+switzerland = 'https://www.indeed.ch'
+united_arab_emirates = 'https://www.indeed.ae'
+new_zealand = 'https://nz.indeed.com'
+india = 'https://www.indeed.co.in'
+france = 'https://www.indeed.fr'
+italy = 'https://it.indeed.com'
+spain = 'https://www.indeed.es'
+japan = 'https://jp.indeed.com'
+south_korea = 'https://kr.indeed.com'
+brazil = 'https://www.indeed.com.br'
+mexico = 'https://www.indeed.com.mx'
+china = 'https://cn.indeed.com'
+saudi_arabia = 'https://sa.indeed.com'
+egypt = 'https://eg.indeed.com'
+thailand = 'https://th.indeed.com'
+vietnam = 'https://vn.indeed.com'
+argentina = 'https://ar.indeed.com'
+ireland = 'https://ie.indeed.com'
+
 
 def main():
-    print("Welcome to the Web Scraper!")
-    print("1. Scrape Static Page")
-    print("2. Scrape Dynamic Page")
+    driver = configure_webdriver()
+    country = canada
+    job_position = 'software developer'
+    job_location = 'remote'
+    date_posted = 20 #postings within last 25 days 
+
+    cleaned_df = None
 
     try:
-        choice = int(input("Enter your choice (1 for Static, 2 for Dynamic): "))
+        full_url = search_jobs(driver, country, job_position, job_location, date_posted)
+        print(f"Searching for jobs at: {full_url}")
         
-        # Scrape multiple URLs, let the user input them as a comma-separated list
-        urls = input("Enter the URL(s) to scrape, separated by commas: ")
-        url_list = [u.strip() for u in urls.split(",")]
+        df = scrape_job_data(driver, country)
+        print(f"Scraped {len(df)} job postings.")
+        print(df.head())  # Print the first few rows of the DataFrame for inspection
 
-        # Ask the user for keywords to search for (want to make this automatic from uploading resume later on)
-        kw_input = input("Enter keywords to match (comma-separated), or press Enter to skip: ")
-        keywords = [k.strip() for k in kw_input.split(",")] if kw_input else None
+        cleaned_df = clean_data(df) # clearing employer active but can always add stuff too! 
+        csv_file = save_csv(cleaned_df, job_position, job_location)
+        print(f"Job data saved to: {csv_file}")
 
-        if choice == 1:
-            print("\nPerforming static scraping on all URLs...")
-            for url in url_list:
-                print(f"\nScraping URL: {url}")
-                result = scrape_static(url)
-                print(json.dumps(result, indent=2))
-
-        elif choice == 2:
-            print("\nPerforming dynamic scraping on all URLs...")
-            for url in url_list:
-                print(f"\nScraping URL: {url}")
-                result = scrape_dynamic(url, keywords=keywords)
-                print(json.dumps(result, indent=2))
-
-        else:
-            print("Invalid choice. Please enter 1 or 2.")
-
-    except ValueError:
-        print("Invalid input. Please enter a number.")
-    except Exception as e:
-        print("An unexpected error occurred:", str(e))
+    finally:
+        pass
+        driver.quit()
 
 
 if __name__ == "__main__":
