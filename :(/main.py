@@ -39,9 +39,9 @@ ireland = 'https://ie.indeed.com'
 def main():
     driver = configure_webdriver()
     country = canada
-    job_position = 'software developer'
+    job_position = 'web developer'
     job_location = 'remote'
-    date_posted = 20 #postings within last 25 days 
+    date_posted = 25 #postings within last 25 days 
 
     cleaned_df = None
 

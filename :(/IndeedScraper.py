@@ -9,6 +9,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from selenium.common import NoSuchElementException
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
 
 def configure_webdriver():
     options = webdriver.ChromeOptions()
@@ -36,8 +37,7 @@ def search_jobs(driver, country, job_position, job_location, date_posted):
     driver.get(full_url)
     global total_jobs
     try:
-        job_count_element = driver.find_element(By.XPATH,
-                                                '//div[starts-with(@class, "jobsearch-JobCountAndSortPane-jobCount")]')
+        job_count_element = driver.find_element(By.XPATH, '//div[starts-with(@class, "jobsearch-JobCountAndSortPane-jobCount")]')
         total_jobs = job_count_element.find_element(By.XPATH, './span').text
         print(f"{total_jobs} found")
     except NoSuchElementException:
@@ -54,9 +54,11 @@ def scrape_job_data(driver, country):
     while True:
         # count += 1
         soup = BeautifulSoup(driver.page_source, 'lxml')
+        print(soup)
 
         boxes = soup.find_all('div', class_='job_seen_beacon')
-
+        print(boxes)
+        
         for i in boxes:
             try:
                 link = i.find('a', {'data-jk': True}).get('href')
