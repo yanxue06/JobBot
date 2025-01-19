@@ -90,12 +90,12 @@ def scrape_job_data(driver, country):
                 employer_active = i.find('span', class_='date').text.strip()
             except AttributeError:
                 try:
-                    employer_active = i.find('span', {'data-testid': 'myJobsStateDate'}).text.strip()
+                    employer_active = i.find('span', {'data-testid': 'inlineHeader-companyName'}).text.strip()
                 except AttributeError:
                     employer_active = None
 
             try:
-                location_element = i.find('div', {'data-testid': 'text-location'})
+                location_element = i.find('div', {'data-testid': 'inlineHeader-companyLocation'})
                 if location_element:
                     try:
                         location = location_element.find('span').text.strip()
