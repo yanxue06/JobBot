@@ -1,8 +1,7 @@
-import json
-
 import re 
 import os 
 import pandas as pd
+
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -81,7 +80,7 @@ def scrape(url):
         "Location": [location],
         "Salary": [salary],
         "Description": [description],
-        "Lists": [lists],
+        "Points of Interest": [lists],
         "url": [url]
     }
 
