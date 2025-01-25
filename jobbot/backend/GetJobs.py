@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
+
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
@@ -32,6 +33,7 @@ def scrape(url):
 
     # Extract job details
     try:
+        #Attempts to find the <h1> element that has the HTML attribute data-testid="jobsearch-JobInfoHeader-title" (this is specific to Indeed’s page structure).
         job_title = soup.find('h1', {'data-testid': 'jobsearch-JobInfoHeader-title'}).text.strip()
     except AttributeError:
         job_title = None
@@ -42,6 +44,7 @@ def scrape(url):
             company = company_element.find('a').get_text(strip=True) 
     except AttributeError:
         company = None
+        print("no company value")
 
     try:    
         # First, try the primary way to find location with data-testid
@@ -71,7 +74,9 @@ def scrape(url):
     description = ' '.join([p.get_text(strip=True) for p in soup.find_all('p')])
 
     # Extract any listed benefits or responsibilities
-    lists = [li.get_text(strip=True) for li in soup.find_all('li')]
+    bullet_points = [f"- {li.get_text(strip=True)}" for li in soup.find_all('li')]
+
+    list = "\n".join(bullet_points)
 
     # Create and clean a DataFrame for the results
     job_data = {
@@ -80,7 +85,7 @@ def scrape(url):
         "Location": [location],
         "Salary": [salary],
         "Description": [description],
-        "Points of Interest": [lists],
+        "Responsibilities, Qualifications and/or Benefits": [list], # Usually will include Job Qualifications, Extract info etc. 
         "url": [url]
     }
 
@@ -95,11 +100,10 @@ def scrape(url):
     return df
 
 
-
 def save_csv(df, company, title): 
     def path_to_desktop(): 
         home_dir = os.path.expanduser("~")
-        desktop_path = os.path.join(home_dir, "Desktop")
+        desktop_path = os.path.join(home_dir, "Desktop/JobMatcher/Files")
         return desktop_path
 
     # Handling no company or title 
@@ -108,7 +112,8 @@ def save_csv(df, company, title):
     if not title:
         title = "Unknown_Title"
 
-    # Ensure the filename is valid for a file system
+    # Ensure the filename is valid for a file system, so replace all non-alphanumeric
+    # with an underscore 
     sanitized_company = ''.join(c if c.isalnum() else '_' for c in company)
     sanitized_title = ''.join(c if c.isalnum() else '_' for c in title)
 

@@ -1,17 +1,25 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
+import './components/typewriter.jsx'
+import Typewriter from './components/typewriter'
+import TextField from '@mui/material/TextField';
 
 function App() {
-  const [count, setCount] = useState(0)
-
+  
   return (
     <>
-      <h1>Welcome... to JobBot</h1>
-      <div> 
-        <h1> let's automate your job application workflow! </h1> 
+    
+      <div className = "C1"> 
+        <div className="title"> 
+          <Typewriter text="Hey! Welcome to JobBot" speed={100} highlightWord='JobBot'/>
+        </div> 
+        <TextField id="outlined-basic" label="Outlined" variant="outlined" />
+        <div className = "R1"> </div> 
+        <div className = "R2"> </div> 
+        <div className = "R3"> </div> 
       </div>
+
+
     </>
   )
 }
