@@ -11,21 +11,15 @@
   color: beige; 
   margin: 0; 
   padding: 0;
-  align-self: flex-start; /* Ensures it aligns to the left within the flex container */
 }
 
 .C1 {
   display: flex; 
+  text-align: center; 
   flex-direction: column; /* Ensures child elements are stacked vertically */
-  align-items: flex-start; /* Aligns child elements to the left */
-  justify-content: flex-start; /* Pushes items to the top of the container */
-  width: 30%; /* Make the parent container span the full width */
-  height: 100vh; /* Full viewport height */
-  padding: 10px; /* Optional: adds padding around the container */
-  margin: 0; 
-  position: absolute; /* Ensures it stays fixed relative to the viewport */
-  top: 10%; 
-  left: 5%;
-  box-sizing: border-box; /* Includes padding in width/height calculations */
+  align-items: center; /* Aligns child elements to the left */
+  justify-content: center; /* Pushes items to the top of the container */
+  width: 100%; /* Make the parent container span the full width */
+  height: 100%; /* Full viewport height */
   gap: 10px; 
 }

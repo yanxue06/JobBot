@@ -11,6 +11,40 @@ from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
 
+# for the summarizer 
+import requests
+import os
+from dotenv import load_dotenv
+
+
+WORDS_TO_FILTER = [
+    "Home",
+    "Company reviews",
+    "Salary guide",
+    "Employers",
+    "Create your resume",
+    "Resume services",
+    "Change country",
+    "Help",
+    "Privacy Centre",
+    "Part-time",
+    "Full-time",
+    "Hiring Lab",
+    "Career advice",
+    "Browse jobs",
+    "Browse companies",
+    "Salaries",
+    "Indeed Events",
+    "Work at Indeed",
+    "Countries",
+    "About",
+    "Help",
+    "ESG at Indeed",
+    "© 2025 Indeed",
+    "Accessibility at Indeed",
+    "Privacy Centre and Ad Choices",
+    "Terms"
+]
 
 def configure_driver(): 
     options = webdriver.ChromeOptions()
@@ -21,90 +55,175 @@ def configure_driver():
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
     return driver 
 
+def summarize(soup): 
+
+    load_dotenv() 
+    api_key = os.getenv("HUGGINGFACE_API_KEY")
+    if not api_key:
+        raise ValueError("HUGGINGFACE_API_KEY is not set")
+    
+    # Use the BART-based summarization model
+    API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    # kills all html tags
+    content = soup.get_text() 
+
+    text_to_summarize = (
+        f"Extract and summarize only the following job posting with this structure, seperated with semicolons:\n"
+        f"1. Job Title and Company\n"
+        f"2. Salary Information (if available)\n"
+        f"3. Location\n"
+        f"4. Key Requirements (2-3 most important)\n"
+        f"5. Main Responsibilities (2-3 most critical)\n"
+        f"Content to summarize: {content}"
+    )
+
+    # Prepare the correct input format for the BART model
+    data = {
+        "inputs": text_to_summarize,
+        "parameters": {
+            "min_length": 50,  # Increased for more detailed summary
+            "max_length": 150,  # Increased to accommodate structured format
+            "temperature": 0.3,  # Reduced for more focused/consistent output
+            "top_p": 0.9,      # Slightly increased for better coherence
+        }
+    }
+
+    # Send request to Hugging Face API
+    try:
+        response = requests.post(API_URL, headers=headers, json=data, timeout=300)
+        result = response.json() 
+        print("Summary:", result[0]["summary_text"])  
+        return result[0]["summary_text"]
+    
+    except Exception as e:
+        print("An error occurred:", e)
+
+    return "No summary available"
+
+def extract_from_summary(summary):
+    """Extract job details from the summary when primary scraping fails"""
+    info = {
+        'title': None,
+        'company': None,
+        'salary': None
+    }
+    
+    # Look for salary patterns including "from" and "per hour" formats
+    salary_pattern = r'(?:From |starting at )?\$[\d,]+(?:\.?\d{2})?(?:\s*-\s*\$[\d,]+(?:\.?\d{2})?)?(?:\s*(?:per hour|an hour))?'
+    salary_match = re.search(salary_pattern, summary)
+    if salary_match:
+        info['salary'] = salary_match.group(0)
+    
+    # Look for job title at the start of summary or after specific phrases
+    title_pattern = r'(?:^|\bis looking for |seeking |hiring )(?:a |an )?([A-Z][A-Za-z\s-]+?)(?=\s+to|\s+who|\s+that|\s+in|\s+at|\s+with|\.|,)'
+    title_match = re.search(title_pattern, summary)
+    if title_match:
+        info['title'] = title_match.group(1).strip()
+    
+    # Look for company name patterns
+    company_pattern = r'(?:at|for|with|join)\s+([A-Z][A-Za-z\s&.-]+?)(?=\s+to|\s+is|\s+in|\s+seeks|\s+requires|\s+team|\.|,)'
+    company_match = re.search(company_pattern, summary)
+    if company_match:
+        info['company'] = company_match.group(1).strip()
+    
+    return info
 
 def scrape(url):
     driver = configure_driver()
-    driver.get(url)  # Open the single job link
-
-    # Parse page content
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-
+    driver.get(url)
+    soup = BeautifulSoup(driver.page_source, "html.parser")        
     driver.quit()
+
+    # Get summary first to use as backup
+    summary = summarize(soup)
+    backup_info = extract_from_summary(summary)
 
     # Extract job details
     try:
-        #Attempts to find the <h1> element that has the HTML attribute data-testid="jobsearch-JobInfoHeader-title" (this is specific to Indeed’s page structure).
         job_title = soup.find('h1', {'data-testid': 'jobsearch-JobInfoHeader-title'}).text.strip()
+        print(f"job title: {job_title}")
     except AttributeError:
-        job_title = None
+        job_title = backup_info['title'] if backup_info['title'] else "Unknown Title"
+        print(f"Using backup job title: {job_title}")
 
-    try:
+    try:   
+        company = "unknown"
         company_element = soup.find('div', {'data-testid': 'inlineHeader-companyName'})
         if company_element:
             company = company_element.find('a').get_text(strip=True) 
+        if company == "unknown":
+            company = backup_info['company'] if backup_info['company'] else "unknown"
+        print(f"company: {company}")
     except AttributeError:
-        company = None
-        print("no company value")
+        company = backup_info['company'] if backup_info['company'] else "unknown"
+        print("Using backup company value")
 
     try:    
-        # First, try the primary way to find location with data-testid
         location_element = soup.find('div', {'data-testid': 'inlineHeader-companyLocation'})
         if location_element:
             location = location_element.get_text(strip=True)
         else:
-            # If not found, try another approach using the specific class
             location_element = soup.find('div', class_='css-16tkvfy')
             location = location_element.get_text(strip=True) if location_element else "Unknown Location"
     except AttributeError:
-        location = None 
+        location = "Unknown Location"
 
- 
     try:
         salary = "unknown"
         salary_element = soup.find('div', {'id': 'salaryInfoAndJobType'})
         if salary_element:
-            salary_text = salary_element.find('span').get_text(strip=True)  # Extract the full text
-            pattern = r'\$\S+'  # Match from $ to the first space
-            match = re.search(pattern, salary_text)  # Search for the pattern in the extracted text
-            salary = match.group() if match else None  # Get the matched salary or set to None
+            salary_text = salary_element.find('span').get_text(strip=True)
+            pattern = r'\$\S+'
+            match = re.search(pattern, salary_text)
+            salary = match.group() if match else None
+        if salary == "unknown":
+            salary = backup_info['salary'] if backup_info['salary'] else "unknown"
     except AttributeError:
-        salary = None
+        salary = backup_info['salary'] if backup_info['salary'] else "unknown"
 
     # Extract paragraphs for the job description
     description = ' '.join([p.get_text(strip=True) for p in soup.find_all('p')])
 
     # Extract any listed benefits or responsibilities
-    bullet_points = [f"- {li.get_text(strip=True)}" for li in soup.find_all('li')]
+    bullet_points = []
+    for li in soup.find_all('li'):
+        text = li.get_text(strip=True)
+        should_include = True
+        for word in WORDS_TO_FILTER:
+            if word.lower() in text.lower():
+                should_include = False
+                break
+        if should_include:
+            bullet_points.append(f"- {text}")
 
     list = "\n".join(bullet_points)
-
+    
     # Create and clean a DataFrame for the results
     job_data = {
         "Job Title": [job_title],
         "Company": [company],
         "Location": [location],
         "Salary": [salary],
+        "Summary": [summary],
         "Description": [description],
-        "Responsibilities, Qualifications and/or Benefits": [list], # Usually will include Job Qualifications, Extract info etc. 
+        "Responsibilities, Qualifications and/or Benefits": [list],
         "url": [url]
     }
 
     df = pd.DataFrame(job_data)
-
-    #lets save it to a CSV file 
     save_csv(df, company, job_title)
-
-    #for testing
     print(df.to_dict(orient="records"))
-
     return df
 
-
 def save_csv(df, company, title): 
-    def path_to_desktop(): 
+
+    # eventually can get user to prompt where to save to 
+    def path_to_file(): 
         home_dir = os.path.expanduser("~")
-        desktop_path = os.path.join(home_dir, "Desktop/JobMatcher/Files")
-        return desktop_path
+        file_path = os.path.join(home_dir, "Desktop/jobs.xlsx")
+        return file_path
 
     # Handling no company or title 
     if not company:
@@ -112,21 +231,18 @@ def save_csv(df, company, title):
     if not title:
         title = "Unknown_Title"
 
-    # Ensure the filename is valid for a file system, so replace all non-alphanumeric
-    # with an underscore 
-    sanitized_company = ''.join(c if c.isalnum() else '_' for c in company)
-    sanitized_title = ''.join(c if c.isalnum() else '_' for c in title)
+    file_path = path_to_file() # gets the file path 
 
-    # Create the file path with a proper extension
-    file_name = f'{sanitized_company}_{sanitized_title}.xlsx'
-    file_path = os.path.join(path_to_desktop(), file_name)
+    if os.path.exists(file_path):
+        existing_df = pd.read_excel(file_path)
+        combined_df = pd.concat([existing_df, df])
+    else: 
+        combined_df = df 
 
+    #2 write the combined dataframe back to excel 
+    combined_df.to_excel(file_path, index=False)
     # Save the DataFrame to an Excel file
     try:
-        # Save the initial file using pandas
-        df.to_excel(file_path, index=False)
-
-        # Adjust column widths and enable text wrapping using openpyxl
         workbook = load_workbook(file_path)
         sheet = workbook.active
 
@@ -136,19 +252,28 @@ def save_csv(df, company, title):
             column_name = sheet.cell(row=1, column=column_index).value  # Get the column name
 
             for cell in column_cells:
-                # Ensure the value is treated as a string for length calculation
                 if cell.value:
                     cell_value = str(cell.value)
                     max_length = max(max_length, len(cell_value))
-
+                     
                 # Enable text wrapping for all cells
                 cell.alignment = Alignment(wrap_text=True)
 
-            if column_name in ['Description', 'Lists']:
-                sheet.column_dimensions[column_letter].width = 50  # Wider for longer text
+            # Set specific widths for each column type
+            if column_name == "Description":
+                sheet.column_dimensions[column_letter].width = 50
+            elif column_name == "Responsibilities, Qualifications and/or Benefits":
+                sheet.column_dimensions[column_letter].width = 50
+            elif column_name == "Summary":
+                sheet.column_dimensions[column_letter].width = 35  # Reduced from default
+            elif column_name == "Job Title":
+                sheet.column_dimensions[column_letter].width = 15
+            elif column_name in ["Company", "Location", "Salary"]:
+                sheet.column_dimensions[column_letter].width = 15
+            elif column_name == "url":
+                sheet.column_dimensions[column_letter].width = 20
             else:
-                # Adjust other columns based on content
-                adjusted_width = max_length + 2  # Add some padding
+                adjusted_width = max_length + 2  # add padding
                 sheet.column_dimensions[column_letter].width = adjusted_width
         # Save the formatted Excel file
         workbook.save(file_path)

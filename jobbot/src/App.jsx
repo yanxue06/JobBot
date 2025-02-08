@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import './App.css'
 import './components/typewriter.jsx'
-import Typewriter from './components/typewriter'
-import TextField from '@mui/material/TextField';
+import Typewriter from './components/typewriter';
+import Input from './components/inputbox.jsx'
+
 
 function App() {
   
@@ -11,12 +12,13 @@ function App() {
     
       <div className = "C1"> 
         <div className="title"> 
-          <Typewriter text="Hey! Welcome to JobBot" speed={100} highlightWord='JobBot'/>
+          <Typewriter text="Welcome to JobBot" speed={100} highlightWord='JobBot'/>
         </div> 
-        <TextField id="outlined-basic" label="Outlined" variant="outlined" />
-        <div className = "R1"> </div> 
-        <div className = "R2"> </div> 
-        <div className = "R3"> </div> 
+
+        <div className = "R1"> 
+          <Input/>
+        </div> 
+
       </div>
 
 
