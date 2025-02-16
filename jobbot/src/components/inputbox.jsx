@@ -1,19 +1,50 @@
 import React, { useState } from 'react';
 import { FormControl, InputLabel, Input, FormHelperText, Button, 
-         CircularProgress, List, ListItem, ListItemText, Paper } from '@mui/material';
+         CircularProgress, List, ListItem, ListItemText, Paper, IconButton } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
+import DeleteIcon from '@mui/icons-material/Delete';
+import Link from '@mui/material/Link';
 
 const InputBox = () => {
-  const [jobLinks, setJobLinks] = useState('');
+  const [inputValue, setInputValue] = useState('');
+  const [linkList, setLinkList] = useState([]);  // Array to store individual links
   const [isLoading, setIsLoading] = useState(false);
   const [scrapedLinks, setScrapedLinks] = useState([]);
 
+  // Handle input changes and detect Enter key
+  const handleInputChange = (e) => {
+    setInputValue(e.target.value);
+  };
+
+  // Handle key press to detect Enter
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && inputValue.trim()) {
+      e.preventDefault();  // Prevent form submission
+      addLink();
+    }
+  };
+
+  // Add link to list
+  const addLink = () => {
+    if (inputValue.trim()) {
+      setLinkList([...linkList, inputValue.trim()]);
+      setInputValue('');  // Clear input after adding
+    }
+  };
+
+  // Remove link from list
+  const removeLink = (indexToRemove) => {
+    setLinkList(linkList.filter((_, index) => index !== indexToRemove));
+  };
+
+  // Modified submit handler to use linkList instead of comma-separated string
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (linkList.length === 0) return;
+
     setIsLoading(true);
-    const links = jobLinks.split(',').map(link => link.trim());
-    setScrapedLinks(links.map(link => ({ url: link, status: 'pending' })));
+    setScrapedLinks(linkList.map(url => ({ url, status: 'pending' })));
 
     try {
       const response = await fetch('http://localhost:5001/scrape', {
@@ -21,17 +52,15 @@ const InputBox = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ links: links }),
+        body: JSON.stringify({ links: linkList }),
       });
 
       if (response.ok) {
-        // Update all links to success
         setScrapedLinks(prev => 
           prev.map(link => ({ ...link, status: 'success' }))
         );
-        setJobLinks('');
+        setLinkList([]); // Clear link list after successful submission
       } else {
-        // Mark all as failed
         setScrapedLinks(prev => 
           prev.map(link => ({ ...link, status: 'error' }))
         );
@@ -73,43 +102,70 @@ const InputBox = () => {
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <form onSubmit={handleSubmit} style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-        <FormControl required style={containerStyle}>
-          <InputLabel style={{ color: '#fff'}}>Input your Job Links!</InputLabel>
+        <FormControl style={containerStyle}>
+          <InputLabel style={{ color: '#fff' }}>Input your Job Links!</InputLabel>
           <Input
-            id="job-links-input"
-            value={jobLinks}
-            onChange={(e) => setJobLinks(e.target.value)}
-            multiline
-            rows={1}
+            value={inputValue}
+            onChange={handleInputChange}
+            onKeyPress={handleKeyPress}
             style={{ 
               color: '#fff',
-              fontSize: '14px',
-              '&:before': {
-                borderColor: 'rgba(255, 255, 255, 0.2)'
-              },
-              '&:after': {
-                borderColor: '#9ec5e5'
-              }
+              marginBottom: '10px'
             }}
           />
-          <FormHelperText style={{ color: '#9ec5e5' }}>
-            Enter link1, link2, linkN...
+          <FormHelperText 
+            style={{ 
+              color: linkList.length === 0 ? '#f44336' : '#9ec5e5'  // Red if no links, blue otherwise
+            }}
+          >
+            {linkList.length === 0 
+              ? 'Add at least one link before scraping' 
+              : 'Press Enter after each link'}
           </FormHelperText>
+          
+          {/* Display added links */}
+          {linkList.length > 0 && (
+            <Paper style={{ 
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              margin: '10px 0',
+              maxHeight: '200px',
+              overflow: 'auto'
+            }}>
+              <List>
+                {linkList.map((link, index) => (
+                  <ListItem key={index}>
+                    <ListItemText 
+                      primary={
+                        <Link 
+                          href={link} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          style={{ color: '#9ec5e5' }}
+                        >
+                          {link}
+                        </Link>
+                      }
+                    />
+                    <IconButton 
+                      onClick={() => removeLink(index)}
+                      style={{ color: '#f44336' }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </ListItem>
+                ))}
+              </List>
+            </Paper>
+          )}
+
           <Button
             type="submit"
             variant="contained"
-            disabled={isLoading}
+            disabled={isLoading || linkList.length === 0}
             style={{
               marginTop: '16px',
               backgroundColor: '#9ec5e5',
               color: '#1a1a1a',
-              fontWeight: 'bold',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                backgroundColor: '#7ab0d8',
-                transform: 'translateY(-2px)',
-                boxShadow: '0 5px 15px rgba(158, 197, 229, 0.3)'
-              }
             }}
           >
             {isLoading ? <CircularProgress size={24} /> : 'SCRAPE AND SAVE'}

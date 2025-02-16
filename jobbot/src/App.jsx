@@ -12,7 +12,7 @@ function App() {
     
       <div className = "C1"> 
         <div className="title"> 
-          <Typewriter text="Welcome to JobBot" speed={100} highlightWord='JobBot'/>
+          <Typewriter text="JobBot" speed={100} highlightWord='JobBot'/>
         </div> 
 
         <div className = "R1"> 
