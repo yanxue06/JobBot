@@ -1,5 +1,5 @@
 import pandas as pd
-from GetJobs import * 
+from jobbot.backend.GetJobs import * 
 from bs4 import BeautifulSoup
 
 def cleanJobs(driver, Keywords = None): 
