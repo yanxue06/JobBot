@@ -19,37 +19,32 @@ import Link from "@mui/material/Link";
 
 const InputBox = () => {
   const [inputValue, setInputValue] = useState("");
-  const [linkList, setLinkList] = useState([]); // Array to store individual links
+  const [linkList, setLinkList] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [scrapedLinks, setScrapedLinks] = useState([]);
 
-  // Handle input changes and detect Enter key
   const handleInputChange = (e) => {
     setInputValue(e.target.value);
   };
 
-  // Handle key press to detect Enter
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && inputValue.trim()) {
-      e.preventDefault(); // Prevent form submission
+      e.preventDefault();
       addLink();
     }
   };
 
-  // Add link to list
   const addLink = () => {
     if (inputValue.trim()) {
       setLinkList([...linkList, inputValue.trim()]);
-      setInputValue(""); // Clear input after adding
+      setInputValue("");
     }
   };
 
-  // Remove link from list
   const removeLink = (indexToRemove) => {
     setLinkList(linkList.filter((_, index) => index !== indexToRemove));
   };
 
-  // Modified submit handler to use linkList instead of comma-separated string
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (linkList.length === 0) return;
@@ -70,7 +65,7 @@ const InputBox = () => {
         setScrapedLinks((prev) =>
           prev.map((link) => ({ ...link, status: "success" })),
         );
-        setLinkList([]); // Clear link list after successful submission
+        setLinkList([]);
       } else {
         setScrapedLinks((prev) =>
           prev.map((link) => ({ ...link, status: "error" })),
@@ -89,14 +84,14 @@ const InputBox = () => {
   const containerStyle = {
     width: "80%",
     maxWidth: "800px",
-    backgroundColor: "rgba(255, 255, 255, 0.07)", // Slightly more transparent
+    backgroundColor: "rgba(255, 255, 255, 0.07)",
     padding: "24px",
-    borderRadius: "16px", // Slightly more rounded
-    boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)", // Fancier shadow
+    borderRadius: "16px",
+    boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
     backdropFilter: "blur(8px)",
     margin: "0 auto",
-    border: "1px solid rgba(255, 255, 255, 0.1)", // Subtle border
-    transition: "all 0.3s ease", // Smooth transitions
+    border: "1px solid rgba(255, 255, 255, 0.1)",
+    transition: "all 0.3s ease",
   };
 
   const listItemStyle = {
@@ -138,7 +133,7 @@ const InputBox = () => {
           />
           <FormHelperText
             style={{
-              color: linkList.length === 0 ? "#f44336" : "#9ec5e5", // Red if no links, blue otherwise
+              color: linkList.length === 0 ? "#f44336" : "#9ec5e5",
             }}
           >
             {linkList.length === 0
@@ -146,7 +141,6 @@ const InputBox = () => {
               : "Press Enter after each link"}
           </FormHelperText>
 
-          {/* Display added links */}
           {linkList.length > 0 && (
             <Paper
               style={{

@@ -1,12 +1,10 @@
-from flask import Flask, request, jsonify  # For the backend API
+from flask import Flask, request, jsonify
 from GetJobs import scrape
-from flask_cors import CORS  # Import CORS
+from flask_cors import CORS
 
 
-# Flask app initialization
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
-
+CORS(app)
 
 
 @app.route('/scrape', methods=['POST'])
@@ -20,13 +18,12 @@ def scrape_links():
 
     for url in links:
         try:
-            print(f"Scraping: {url}")
             job_data = scrape(url)
             scraped_data.append(job_data)
         except Exception as e:
-            print(f"Error scraping {url}: {e}")
+            pass
 
     return jsonify({"message": "Scraping completed successfully"}), 200
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001) #or any port other than one already used
+    app.run(debug=True, port=5001)
