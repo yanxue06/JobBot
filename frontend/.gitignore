@@ -25,9 +25,6 @@ dist-ssr
 
 !node_modules/.vite
 
-**/tempobook/dynamic/
-**/tempobook/storyboards/
-
 core
 
 .github/

@@ -9,6 +9,7 @@
     "build-no-errors": "tsc ; vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
+    "format": "prettier --write \"src/**/*.tsx\" \"src/*.tsx\"", 
     "types:supabase": "npx supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/supabase.ts"
   },
   "dependencies": {
@@ -68,7 +69,6 @@
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
     "tailwindcss": "3.4.1",
-    "tempo-devtools": "^2.0.100",
     "typescript": "^5.8.2",
     "vite": "^6.2.3"
   }

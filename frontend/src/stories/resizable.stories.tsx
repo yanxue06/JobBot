@@ -4,7 +4,7 @@ import {
   ResizablePanelGroup,
 } from "../components/ui/resizable";
 
-const meta= {
+const meta = {
   title: "ui/ResizablePanelGroup",
   component: ResizablePanelGroup,
   tags: ["autodocs"],

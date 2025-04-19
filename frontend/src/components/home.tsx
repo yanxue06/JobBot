@@ -22,7 +22,7 @@ const Home = () => {
       <header className="sticky top-0 z-10 px-4 py-3 bg-white border-b dark:bg-slate-900 border-slate-200 dark:border-slate-800">
         <div className="container flex items-center justify-between max-w-6xl mx-auto">
           <h2 className="text-xl font-semibold text-slate-800 dark:text-white">
-            JobBot 
+            JobBot
           </h2>
           <div className="flex items-center gap-4">
             <ThemeToggle />
@@ -46,7 +46,6 @@ const Home = () => {
                 chances of landing interviews.
               </p>
               <div className="flex flex-wrap gap-4">
-
                 <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm dark:bg-slate-800">
                   <Briefcase className="w-5 h-5 text-blue-500" />
                   <span className="text-slate-700 dark:text-slate-200">
@@ -82,7 +81,6 @@ const Home = () => {
       <section className="px-4 py-12">
         <div className="container max-w-6xl mx-auto">
           <Card className="border-0 shadow-lg">
-
             <CardHeader className="bg-white border-b rounded-t-lg dark:bg-slate-800 dark:border-slate-700">
               <CardTitle className="text-2xl text-center text-slate-800 dark:text-white">
                 Start Your Analysis
@@ -116,7 +114,7 @@ const Home = () => {
               </Tabs>
             </CardHeader>
             <CardContent className="p-0">
-              <Tabs> 
+              <Tabs>
                 <TabsContent value="job-posting" className="m-0">
                   <JobPostingAnalyzer />
                 </TabsContent>
@@ -137,7 +135,6 @@ const Home = () => {
             Our Nonprofit Mission
           </h2>
           <p className="max-w-3xl mx-auto mb-6 text-slate-600 dark:text-slate-300">
-
             We believe everyone deserves access to quality job application
             assistance. This tool is completely free and designed to democratize
             access to AI-powered job search tools that would otherwise be
