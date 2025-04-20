@@ -113,7 +113,11 @@ const Home = () => {
                     Analyze Resume
                   </TabsTrigger>
                 </TabsList>
+
+                {/* Should be reading from the info the user inputs and passing them into these compoenents*/}
                 <TabsContent value="job-posting" className="m-0">
+                  {" "}
+                  {/* Tabs.value === TabsContent.value */}
                   <JobPostingAnalyzer />
                 </TabsContent>
                 <TabsContent value="resume" className="m-0">
@@ -165,8 +169,6 @@ const Home = () => {
                 improve their applications.
               </p>
             </div>
-
-        
           </div>
         </div>
       </section>

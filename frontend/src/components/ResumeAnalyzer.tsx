@@ -42,7 +42,6 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
     matchedKeywords: string[];
   } | null>(null);
 
-
   const mockAnalysisResults = {
     compatibilityScore: 72,
     missingKeywords: [
@@ -207,7 +206,9 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                   <div className="flex items-center gap-3">
                     <FileText className="h-6 w-6 text-blue-500" />
                     <div>
-                      <p className="font-medium text-gray-700 dark:text-slate-200">{file.name}</p>
+                      <p className="font-medium text-gray-700 dark:text-slate-200">
+                        {file.name}
+                      </p>
                       <p className="text-xs text-gray-500 dark:text-slate-400">
                         {(file.size / 1024).toFixed(2)} KB
                       </p>
@@ -343,7 +344,10 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                               <AccordionContent>
                                 <ul className="list-disc pl-6 space-y-2">
                                   {category.suggestions.map((suggestion, i) => (
-                                    <li key={i} className="text-gray-700 dark:text-slate-300">
+                                    <li
+                                      key={i}
+                                      className="text-gray-700 dark:text-slate-300"
+                                    >
                                       {suggestion}
                                     </li>
                                   ))}
