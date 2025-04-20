@@ -14,7 +14,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import UserMenu from "@/components/auth/UserMenu";
 
 const Home = () => {
-  const [activeTab, setActiveTab] = useState("job-posting");
+  const [activeTab, setActiveTab] = useState<string>("job-posting");
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
@@ -61,7 +61,7 @@ const Home = () => {
                 <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm dark:bg-slate-800">
                   <Heart className="w-5 h-5 text-blue-500" />
                   <span className="text-slate-700 dark:text-slate-200">
-                    100% Free Service
+                    Completely Non-profitable
                   </span>
                 </div>
               </div>
@@ -89,11 +89,13 @@ const Home = () => {
                 Choose an option below to begin improving your job application
                 materials
               </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
               <Tabs
                 defaultValue="job-posting"
                 value={activeTab}
                 onValueChange={setActiveTab}
-                className="w-full mt-4"
+                className="w-full"
               >
                 <TabsList className="grid w-full grid-cols-2 mb-0">
                   <TabsTrigger
@@ -111,10 +113,6 @@ const Home = () => {
                     Analyze Resume
                   </TabsTrigger>
                 </TabsList>
-              </Tabs>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Tabs>
                 <TabsContent value="job-posting" className="m-0">
                   <JobPostingAnalyzer />
                 </TabsContent>
@@ -132,7 +130,7 @@ const Home = () => {
       <section className="px-4 py-12 bg-blue-50 dark:bg-slate-800">
         <div className="container max-w-4xl mx-auto text-center">
           <h2 className="mb-4 text-2xl font-semibold md:text-3xl text-slate-800 dark:text-white">
-            Our Nonprofit Mission
+            Our Mission
           </h2>
           <p className="max-w-3xl mx-auto mb-6 text-slate-600 dark:text-slate-300">
             We believe everyone deserves access to quality job application
@@ -147,11 +145,11 @@ const Home = () => {
                 <Heart className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <h3 className="mb-2 font-medium text-slate-800 dark:text-white">
-                Free Forever
+                Completely Non-profitable
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                Our service will always remain free, with no hidden fees or
-                premium tiers.
+                You are charged for the amount you amount of tokens you use. We
+                make no profit from this service.
               </p>
             </div>
 
@@ -168,18 +166,7 @@ const Home = () => {
               </p>
             </div>
 
-            <div className="max-w-xs p-6 bg-white rounded-lg shadow-sm dark:bg-slate-700">
-              <div className="flex items-center justify-center w-12 h-12 p-3 mx-auto mb-4 bg-blue-100 rounded-full dark:bg-blue-900">
-                <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <h3 className="mb-2 font-medium text-slate-800 dark:text-white">
-                Privacy First
-              </h3>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                Your data stays on your device. We don't store your resumes or
-                job descriptions.
-              </p>
-            </div>
+        
           </div>
         </div>
       </section>
@@ -194,7 +181,7 @@ const Home = () => {
                 AI Job Application Assistant
               </h2>
               <p className="text-sm text-slate-300">
-                A free, nonprofit service
+                Making job applications easier for everyone.
               </p>
             </div>
             <div className="text-sm text-slate-300">

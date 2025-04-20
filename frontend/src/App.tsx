@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import Home from "./components/home";
 
-function App() {
+const App: React.FC = () => {
   return (
     <Suspense fallback={<p>Loading...</p>}>
       <>
