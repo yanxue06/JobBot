@@ -31,6 +31,8 @@ import { Switch } from "@/components/ui/switch";
 
 interface JobPostingAnalyzerProps {
   onAnalysisComplete?: (analysisData: JobAnalysisData) => void;
+  initialJobDescription?: string;
+  onSaveDescription?: (description: string) => void;
 }
 
 interface JobAnalysisData {
@@ -45,9 +47,11 @@ interface JobAnalysisData {
 
 const JobPostingAnalyzer = ({
   onAnalysisComplete = () => {},
+  initialJobDescription = "",
+  onSaveDescription = () => {},
 }: JobPostingAnalyzerProps) => {
   const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
-  const [jobDescription, setJobDescription] = useState("");
+  const [jobDescription, setJobDescription] = useState(initialJobDescription || "");
   const [jobUrl, setJobUrl] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisComplete, setAnalysisComplete] = useState(false);
@@ -65,6 +69,13 @@ const JobPostingAnalyzer = ({
     salary: "",
   });
 
+  // Initialize from props if available
+  useEffect(() => {
+    if (initialJobDescription) {
+      setJobDescription(initialJobDescription);
+    }
+  }, [initialJobDescription]);
+
   // Clean up the EventSource on component unmount
   useEffect(() => {
     return () => {
@@ -81,6 +92,11 @@ const JobPostingAnalyzer = ({
     } else if (inputMethod === "url" && !jobUrl.trim()) {
       setError("Please enter a job posting URL");
       return;
+    }
+
+    // Save the description when submitting
+    if (inputMethod === "text") {
+      onSaveDescription(jobDescription);
     }
 
     setError(null);
@@ -138,18 +154,6 @@ const JobPostingAnalyzer = ({
                     } catch (parseError) {
                       console.error("Error parsing summary JSON:", parseError);
                       // If it's not valid JSON but contains data, try to extract it
-                      if (
-                        data.summary.includes("{") &&
-                        data.summary.includes("}")
-                      ) {
-                        const jsonStr = data.summary.substring(
-                          data.summary.indexOf("{"),
-                          data.summary.lastIndexOf("}") + 1,
-                        );
-                        parsedSummary = JSON.parse(jsonStr);
-                      } else {
-                        throw parseError;
-                      }
                     }
                   } else {
                     parsedSummary = data.summary;

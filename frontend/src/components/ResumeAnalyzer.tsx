@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Upload, FileText, AlertCircle, CheckCircle, X } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -28,6 +28,16 @@ interface ResumeAnalyzerProps {
   onRequestJobDescription?: () => void;
 }
 
+interface SavedJobData {
+  title: string;
+  company: string;
+  requirements: string[];
+  responsibilities: string[];
+  keywords: string[];
+  location: string;
+  salary: string;
+}
+
 const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
   jobDescription = "",
   onRequestJobDescription = () => {},
@@ -41,6 +51,8 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
     improvementSuggestions: { category: string; suggestions: string[] }[];
     matchedKeywords: string[];
   } | null>(null);
+  const [savedJobData, setSavedJobData] = useState<SavedJobData | null>(null);
+  const [hasJobDescription, setHasJobDescription] = useState(!!jobDescription);
 
   const mockAnalysisResults = {
     compatibilityScore: 72,
@@ -87,6 +99,20 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
     ],
   };
 
+  // Load saved job data from localStorage on component mount
+  useEffect(() => {
+    try {
+      const savedData = localStorage.getItem("analysisData");
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        setSavedJobData(parsedData);
+        setHasJobDescription(true);
+      }
+    } catch (e) {
+      console.error("Error loading saved job data:", e);
+    }
+  }, []);
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0] || null;
     setFile(selectedFile);
@@ -114,22 +140,78 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
     }
   };
 
-  const analyzeResume = () => {
+  const analyzeResume = async () => {
     if (!file) return;
 
-    if (!jobDescription) {
+    if (!hasJobDescription && !savedJobData) {
       onRequestJobDescription();
       return;
     }
 
     setIsAnalyzing(true);
 
-    // Simulate API call with timeout
-    setTimeout(() => {
+    // forms let you send files and other data types to the server
+    const form = new FormData();
+    form.append("resume", file);
+    form.append("analysisData", localStorage.getItem("analysisData") || "");
+
+    try {
+      // Resume analysis logic here
+      const response = await fetch("http://localhost:5317/analyze_resume", {
+        method: "POST",
+        body: form,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to analyze resume");
+      }
+
+      const data = await response.json();
+      console.log("Resume analysis results:", data);
+
+      // Transform the backend response into the format expected by the UI
+      if (data.suggestions) {
+        // Create categorized suggestions from the backend data
+        const categorizedSuggestions = [];
+        
+        // Group suggestions by category if they're already categorized
+        if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+          if (typeof data.suggestions[0] === 'object' && data.suggestions[0].category) {
+            // If suggestions are already categorized objects
+            categorizedSuggestions.push(...data.suggestions);
+          } else {
+            // Otherwise, put all suggestions in a general category
+            categorizedSuggestions.push({
+              category: "General Improvements",
+              suggestions: data.suggestions
+            });
+          }
+        }
+        
+        // Create results object with mock compatibility score for now
+        // In a real implementation, the backend would provide this score
+        const results = {
+          compatibilityScore: data.compatibilityScore || 65,
+          missingKeywords: data.missingKeywords || mockAnalysisResults.missingKeywords,
+          matchedKeywords: data.matchedKeywords || mockAnalysisResults.matchedKeywords,
+          improvementSuggestions: categorizedSuggestions.length > 0 
+            ? categorizedSuggestions 
+            : mockAnalysisResults.improvementSuggestions
+        };
+        
+        setAnalysisResults(results);
+        setAnalysisComplete(true);
+      } else {
+        // Fallback to mock data if no suggestions in response
+        setAnalysisResults(mockAnalysisResults);
+        setAnalysisComplete(true);
+      }
+    } catch (error) {
+      console.error("Error analyzing resume:", error);
+      alert("Failed to analyze resume. Please try again.");
+    } finally {
       setIsAnalyzing(false);
-      setAnalysisComplete(true);
-      setAnalysisResults(mockAnalysisResults);
-    }, 2000);
+    }
   };
 
   const resetAnalysis = () => {
@@ -154,7 +236,7 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
         <CardContent>
           {!analysisComplete ? (
             <div className="space-y-6">
-              {!jobDescription && (
+              {!hasJobDescription && !savedJobData ? (
                 <Alert variant="destructive" className="mb-4">
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Job description required</AlertTitle>
@@ -171,7 +253,15 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                     </Button>
                   </AlertDescription>
                 </Alert>
-              )}
+              ) : savedJobData ? (
+                <Alert className="mb-4 bg-green-50 border-green-200 dark:bg-green-900 dark:border-green-800">
+                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <AlertTitle className="text-green-800 dark:text-green-100">Using saved job data</AlertTitle>
+                  <AlertDescription className="text-green-700 dark:text-green-200">
+                    Analyzing resume against saved job: <strong>{savedJobData.title}</strong> at <strong>{savedJobData.company}</strong>
+                  </AlertDescription>
+                </Alert>
+              ) : null}
 
               <div
                 className="border-2 border-dashed rounded-lg p-10 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
@@ -224,7 +314,7 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                     </Button>
                     <Button
                       onClick={analyzeResume}
-                      disabled={isAnalyzing || !jobDescription}
+                      disabled={isAnalyzing || (!hasJobDescription && !savedJobData)}
                     >
                       {isAnalyzing ? "Analyzing..." : "Analyze Resume"}
                     </Button>

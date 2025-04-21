@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -13,8 +13,55 @@ import { BookOpen, Briefcase, FileText, Heart } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import UserMenu from "@/components/auth/UserMenu";
 
+// Define the job analysis data interface
+interface JobAnalysisData {
+  title: string;
+  company: string;
+  requirements: string[];
+  responsibilities: string[];
+  keywords: string[];
+  location: string;
+  salary: string;
+}
+
 const Home = () => {
   const [activeTab, setActiveTab] = useState<string>("job-posting");
+  const [jobDescription, setJobDescription] = useState<string>("");
+  const [jobAnalysisData, setJobAnalysisData] = useState<JobAnalysisData | null>(null);
+
+  // Load saved job data from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedData = localStorage.getItem("analysisData");
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        setJobAnalysisData(parsedData);
+        
+        // If we have the original job description, load that too
+        const savedJobDescription = localStorage.getItem("jobDescription");
+        if (savedJobDescription) {
+          setJobDescription(savedJobDescription);
+        }
+      }
+    } catch (e) {
+      console.error("Error loading saved job data:", e);
+    }
+  }, []);
+
+  // Handle job analysis completion
+  const handleJobAnalysisComplete = (data: JobAnalysisData) => {
+    setJobAnalysisData(data);
+  };
+
+  // Switch to job posting tab
+  const switchToJobPostingTab = () => {
+    setActiveTab("job-posting");
+  };
+
+  // Switch to resume tab
+  const switchToResumeTab = () => {
+    setActiveTab("resume");
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
@@ -114,14 +161,21 @@ const Home = () => {
                   </TabsTrigger>
                 </TabsList>
 
-                {/* Should be reading from the info the user inputs and passing them into these compoenents*/}
                 <TabsContent value="job-posting" className="m-0">
-                  {" "}
-                  {/* Tabs.value === TabsContent.value */}
-                  <JobPostingAnalyzer />
+                  <JobPostingAnalyzer 
+                    onAnalysisComplete={handleJobAnalysisComplete}
+                    initialJobDescription={jobDescription}
+                    onSaveDescription={(desc) => {
+                      setJobDescription(desc);
+                      localStorage.setItem("jobDescription", desc);
+                    }}
+                  />
                 </TabsContent>
                 <TabsContent value="resume" className="m-0">
-                  <ResumeAnalyzer />
+                  <ResumeAnalyzer 
+                    jobDescription={jobDescription}
+                    onRequestJobDescription={switchToJobPostingTab}
+                  />
                 </TabsContent>
               </Tabs>
             </CardContent>
