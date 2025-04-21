@@ -222,9 +222,63 @@ const JobPostingAnalyzer = ({
           setIsAnalyzing(false);
         };
       } else if (inputMethod === "url") {
-        // In a real implementation, this would call a backend API to scrape and analyze the URL
-        // For now, we'll just use the mock data and show a message about future implementation
+        // Call the web scraping API
         console.log("URL to be scraped:", jobUrl);
+        
+        try {
+          setStreamingOutput("Starting scraping process...\n");
+          
+          const response = await fetch('http://localhost:5317/scrape_job_url', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url: jobUrl }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to scrape job posting');
+          }
+
+          setStreamingOutput(prev => prev + "Job posting scraped successfully!\nAnalyzing content...\n");
+          
+          const data = await response.json();
+          console.log("Scraped job data:", data);
+          
+          // Create analysis data from scraped data
+          const scrapedData = {
+            title: data.title || "Job Title",
+            company: data.company || "Company Name",
+            requirements: Array.isArray(data.requirements) ? data.requirements : [],
+            responsibilities: Array.isArray(data.responsibilities) ? data.responsibilities : [],
+            keywords: Array.isArray(data.keywords) ? data.keywords : [],
+            location: data.location || "Location",
+            salary: data.salary || "Salary Range",
+          };
+          
+          // Save the scraped job description
+          if (data.description) {
+            setJobDescription(data.description);
+            onSaveDescription(data.description);
+          }
+          
+          console.log("Final scraped analysis data:", scrapedData);
+          
+          localStorage.setItem(
+            "analysisData",
+            JSON.stringify(scrapedData),
+          );
+          
+          setAnalysisData(scrapedData);
+          setAnalysisComplete(true);
+          setIsAnalyzing(false);
+          onAnalysisComplete(scrapedData);
+          
+        } catch (err) {
+          console.error("Error scraping URL:", err);
+          setError(`Failed to scrape job URL: ${err}`);
+          setIsAnalyzing(false);
+        }
       }
     } catch (err) {
       setError(
@@ -303,12 +357,12 @@ const JobPostingAnalyzer = ({
                       />
                     </div>
                     {inputMethod === "url" && (
-                      <Alert className="mt-4 bg-blue-50 border-blue-200">
-                        <AlertCircle className="h-4 w-4 text-blue-500" />
-                        <AlertTitle>Web Scraping Feature</AlertTitle>
+                      <Alert className="mt-4 bg-blue-50 border-blue-200 text-black">
+                        <AlertCircle className="h-4 w-4 text-blue-500 dark:text-black" />
+                        <AlertTitle>Web Scraping Available</AlertTitle>
                         <AlertDescription>
-                          The web scraping functionality will be implemented
-                          soon. For now, you can test the interface.
+                          Enter a job posting URL from LinkedIn, Indeed, or other major job sites. 
+                          Our system will attempt to scrape and analyze the content automatically.
                         </AlertDescription>
                       </Alert>
                     )}

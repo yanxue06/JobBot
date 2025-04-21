@@ -7,6 +7,7 @@ import re
 import io
 import mammoth
 from PyPDF2 import PdfReader
+from scraper import scrape_job_posting  # Import the scraper function
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -81,6 +82,139 @@ def analyze_job_posting():
         'X-Accel-Buffering': 'no',
         'Connection': 'keep-alive'
     })
+
+@app.route('/scrape_job_url', methods=['POST'])
+def scrape_job_url():
+    """
+    Scrape a job posting URL and return structured data
+    """
+    try:
+        data = request.json
+        url = data.get('url')
+        
+        if not url:
+            return jsonify({'error': 'URL is required'}), 400
+        
+        try:
+            # First, make a simple validation check on the URL
+            if not url.startswith(('http://', 'https://')):
+                url = 'https://' + url
+            
+            print(f"Starting to scrape URL: {url}")
+            
+            # Try to scrape the job posting
+            job_data = scrape_job_posting(url)
+            print(f"Scraped job data: {job_data.keys()}")
+            
+            # Always enhance with Gemini API if we have a description
+            if job_data.get("description"):
+                print("Enhancing scraped data with Gemini API...")
+                
+                # Use Gemini to analyze the description
+                ai_stream = stream_ai_summary(job_data["description"])
+                summary = ""
+                for chunk in ai_stream:
+                    if hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
+                        delta = chunk.choices[0].delta.content
+                        summary += delta
+                
+                # Try to parse the AI-generated summary
+                try:
+                    # Extract JSON object if embedded in text
+                    json_match = re.search(r'(\{.*\})', summary, re.DOTALL)
+                    if json_match:
+                        json_str = json_match.group(1)
+                        ai_data = json.loads(json_str)
+                    else:
+                        ai_data = json.loads(summary)
+                    
+                    print("AI data from Gemini:", ai_data.keys() if isinstance(ai_data, dict) else "Not a dictionary")
+                    
+                    # Merge AI data with scraped data, but keep scraped data if it's already populated
+                    if isinstance(ai_data, dict):
+                        for key in ai_data:
+                            # Only use AI data if the field is empty or minimal
+                            if key in job_data:
+                                if isinstance(job_data[key], list) and len(job_data[key]) == 0:
+                                    # Empty lists (requirements, responsibilities, keywords)
+                                    job_data[key] = ai_data[key]
+                                elif isinstance(job_data[key], str) and (not job_data[key] or job_data[key] in ["Unknown Title", "Unknown Company", "Unknown Location", "Not specified"]):
+                                    # Empty or default string values
+                                    job_data[key] = ai_data[key]
+                except Exception as e:
+                    print(f"Error processing AI data: {str(e)}")
+                    # If we can't get structured data from the AI, but still have an unstructured description,
+                    # try one more time with a more explicit prompt
+                    if not job_data["requirements"] or not job_data["responsibilities"]:
+                        try:
+                            print("Trying more explicit prompt for requirements/responsibilities...")
+                            # Create a more explicit prompt
+                            explicit_prompt = f"Extract the following information from this job posting:\n\n{job_data['description']}\n\nPlease return ONLY a JSON object with these keys: title, company, requirements (array), responsibilities (array), keywords (array), location, salary."
+                            
+                            # Call the AI again with this explicit prompt
+                            from aiSummary import client
+                            response = client.chat.completions.create(
+                                model="google/gemini-2.0-flash-lite-001",
+                                messages=[
+                                    {"role": "system", "content": "You are an expert job posting analyzer."},
+                                    {"role": "user", "content": explicit_prompt},
+                                ],
+                                response_format={"type": "json_object"},
+                            )
+                            
+                            ai_json = json.loads(response.choices[0].message.content)
+                            print("Got structured data from explicit prompt")
+                            
+                            # Fill in missing data
+                            for key in ai_json:
+                                if key in job_data:
+                                    if isinstance(job_data[key], list) and len(job_data[key]) == 0:
+                                        job_data[key] = ai_json[key]
+                                    elif isinstance(job_data[key], str) and (not job_data[key] or job_data[key] in ["Unknown Title", "Unknown Company", "Unknown Location", "Not specified"]):
+                                        job_data[key] = ai_json[key]
+                        except Exception as e2:
+                            print(f"Error in secondary AI attempt: {str(e2)}")
+            
+            # Final verification to ensure we have some minimum data
+            if not job_data.get("requirements") or len(job_data["requirements"]) == 0:
+                job_data["requirements"] = ["No specific requirements found. Please review the full job description."]
+            
+            if not job_data.get("responsibilities") or len(job_data["responsibilities"]) == 0:
+                job_data["responsibilities"] = ["No specific responsibilities found. Please review the full job description."]
+            
+            if not job_data.get("keywords") or len(job_data["keywords"]) == 0:
+                job_data["keywords"] = ["Skills", "Experience", "Communication"]
+            
+            print("Job analysis complete, returning data")
+            return jsonify(job_data), 200
+        except Exception as scrape_error:
+            print(f"Error during scraping process: {str(scrape_error)}")
+            
+            # Try a direct Gemini analysis as a last resort
+            try:
+                from aiSummary import client
+                
+                print("Attempting direct URL analysis with Gemini")
+                response = client.chat.completions.create(
+                    model="google/gemini-2.0-flash-lite-001",
+                    messages=[
+                        {"role": "system", "content": "You are an expert job posting analyzer."},
+                        {"role": "user", "content": f"Analyze this job posting URL: {url}\n\nExtract and return a JSON object with these keys: title, company, requirements (array), responsibilities (array), keywords (array), location, salary. If you can't access the URL directly, make educated guesses based on the URL itself."},
+                    ],
+                    response_format={"type": "json_object"},
+                )
+                
+                result = json.loads(response.choices[0].message.content)
+                print("Successfully got direct analysis from Gemini")
+                return jsonify(result), 200
+            except Exception as ai_error:
+                print(f"Final fallback also failed: {str(ai_error)}")
+                return jsonify({
+                    'error': f'Failed to scrape job posting: {str(scrape_error)}. Additional error: {str(ai_error)}'
+                }), 500
+    except Exception as e:
+        print(f"Unhandled error in scrape_job_url endpoint: {str(e)}")
+        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
 @app.route('/analyze_resume', methods=['POST'])
 def analyze_resume():
