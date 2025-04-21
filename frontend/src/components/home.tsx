@@ -27,7 +27,8 @@ interface JobAnalysisData {
 const Home = () => {
   const [activeTab, setActiveTab] = useState<string>("job-posting");
   const [jobDescription, setJobDescription] = useState<string>("");
-  const [jobAnalysisData, setJobAnalysisData] = useState<JobAnalysisData | null>(null);
+  const [jobAnalysisData, setJobAnalysisData] =
+    useState<JobAnalysisData | null>(null);
 
   // Load saved job data from localStorage on mount
   useEffect(() => {
@@ -36,7 +37,7 @@ const Home = () => {
       if (savedData) {
         const parsedData = JSON.parse(savedData);
         setJobAnalysisData(parsedData);
-        
+
         // If we have the original job description, load that too
         const savedJobDescription = localStorage.getItem("jobDescription");
         if (savedJobDescription) {
@@ -162,7 +163,7 @@ const Home = () => {
                 </TabsList>
 
                 <TabsContent value="job-posting" className="m-0">
-                  <JobPostingAnalyzer 
+                  <JobPostingAnalyzer
                     onAnalysisComplete={handleJobAnalysisComplete}
                     initialJobDescription={jobDescription}
                     onSaveDescription={(desc) => {
@@ -172,7 +173,7 @@ const Home = () => {
                   />
                 </TabsContent>
                 <TabsContent value="resume" className="m-0">
-                  <ResumeAnalyzer 
+                  <ResumeAnalyzer
                     jobDescription={jobDescription}
                     onRequestJobDescription={switchToJobPostingTab}
                   />

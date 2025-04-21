@@ -173,32 +173,37 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
       if (data.suggestions) {
         // Create categorized suggestions from the backend data
         const categorizedSuggestions = [];
-        
+
         // Group suggestions by category if they're already categorized
         if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
-          if (typeof data.suggestions[0] === 'object' && data.suggestions[0].category) {
+          if (
+            typeof data.suggestions[0] === "object" &&
+            data.suggestions[0].category
+          ) {
             // If suggestions are already categorized objects
             categorizedSuggestions.push(...data.suggestions);
           } else {
             // Otherwise, put all suggestions in a general category
             categorizedSuggestions.push({
               category: "General Improvements",
-              suggestions: data.suggestions
+              suggestions: data.suggestions,
             });
           }
         }
-        
-        // Create results object with mock compatibility score for now
-        // In a real implementation, the backend would provide this score
+
+        // Take the results, but if not filled in, use mock data (FOR TESTING)
         const results = {
           compatibilityScore: data.compatibilityScore || 65,
-          missingKeywords: data.missingKeywords || mockAnalysisResults.missingKeywords,
-          matchedKeywords: data.matchedKeywords || mockAnalysisResults.matchedKeywords,
-          improvementSuggestions: categorizedSuggestions.length > 0 
-            ? categorizedSuggestions 
-            : mockAnalysisResults.improvementSuggestions
+          missingKeywords:
+            data.missingKeywords || mockAnalysisResults.missingKeywords,
+          matchedKeywords:
+            data.matchedKeywords || mockAnalysisResults.matchedKeywords,
+          improvementSuggestions:
+            categorizedSuggestions.length > 0
+              ? categorizedSuggestions
+              : mockAnalysisResults.improvementSuggestions,
         };
-        
+
         setAnalysisResults(results);
         setAnalysisComplete(true);
       } else {
@@ -238,7 +243,7 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
             <div className="space-y-6">
               {!hasJobDescription && !savedJobData ? (
                 <Alert variant="destructive" className="mb-4">
-                  <AlertCircle className="h-4 w-4" />
+                  <AlertCircle className="w-4 h-4" />
                   <AlertTitle>Job description required</AlertTitle>
                   <AlertDescription>
                     Please provide a job description first to compare your
@@ -254,17 +259,21 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                   </AlertDescription>
                 </Alert>
               ) : savedJobData ? (
-                <Alert className="mb-4 bg-green-50 border-green-200 dark:bg-green-900 dark:border-green-800">
-                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  <AlertTitle className="text-green-800 dark:text-green-100">Using saved job data</AlertTitle>
+                <Alert className="mb-4 border-green-200 bg-green-50 dark:bg-green-900 dark:border-green-800">
+                  <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <AlertTitle className="text-green-800 dark:text-green-100">
+                    Using saved job data
+                  </AlertTitle>
                   <AlertDescription className="text-green-700 dark:text-green-200">
-                    Analyzing resume against saved job: <strong>{savedJobData.title}</strong> at <strong>{savedJobData.company}</strong>
+                    Analyzing resume against saved job:{" "}
+                    <strong>{savedJobData.title}</strong> at{" "}
+                    <strong>{savedJobData.company}</strong>
                   </AlertDescription>
                 </Alert>
               ) : null}
 
               <div
-                className="border-2 border-dashed rounded-lg p-10 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+                className="p-10 text-center transition-colors border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800"
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
                 onClick={() =>
@@ -280,11 +289,11 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                 />
 
                 <div className="flex flex-col items-center justify-center gap-2">
-                  <Upload className="h-12 w-12 text-gray-400 dark:text-slate-500" />
+                  <Upload className="w-12 h-12 text-gray-400 dark:text-slate-500" />
                   <h3 className="text-lg font-medium text-gray-700 dark:text-slate-200">
                     Upload your resume
                   </h3>
-                  <p className="text-sm text-gray-500 dark:text-slate-400 max-w-md">
+                  <p className="max-w-md text-sm text-gray-500 dark:text-slate-400">
                     Drag and drop your resume file here, or click to browse.
                     Supported formats: PDF, DOC, DOCX
                   </p>
@@ -292,9 +301,9 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
               </div>
 
               {file && (
-                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-md">
+                <div className="flex items-center justify-between p-3 rounded-md bg-gray-50 dark:bg-slate-800">
                   <div className="flex items-center gap-3">
-                    <FileText className="h-6 w-6 text-blue-500" />
+                    <FileText className="w-6 h-6 text-blue-500" />
                     <div>
                       <p className="font-medium text-gray-700 dark:text-slate-200">
                         {file.name}
@@ -310,11 +319,13 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                       size="sm"
                       onClick={resetAnalysis}
                     >
-                      <X className="h-4 w-4 mr-1" /> Remove
+                      <X className="w-4 h-4 mr-1" /> Remove
                     </Button>
                     <Button
                       onClick={analyzeResume}
-                      disabled={isAnalyzing || (!hasJobDescription && !savedJobData)}
+                      disabled={
+                        isAnalyzing || (!hasJobDescription && !savedJobData)
+                      }
                     >
                       {isAnalyzing ? "Analyzing..." : "Analyze Resume"}
                     </Button>
@@ -343,12 +354,12 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                   Analysis Results
                 </h3>
                 <Button variant="outline" size="sm" onClick={resetAnalysis}>
-                  <Upload className="h-4 w-4 mr-2" /> Upload New Resume
+                  <Upload className="w-4 h-4 mr-2" /> Upload New Resume
                 </Button>
               </div>
 
-              <div className="bg-gray-50 dark:bg-slate-800 p-6 rounded-lg">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="p-6 rounded-lg bg-gray-50 dark:bg-slate-800">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h4 className="text-lg font-medium text-gray-700 dark:text-slate-200">
                       Compatibility Score
@@ -358,13 +369,13 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="relative h-24 w-24">
+                    <div className="relative w-24 h-24">
                       <div className="absolute inset-0 flex items-center justify-center">
                         <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                           {analysisResults?.compatibilityScore || 0}%
                         </span>
                       </div>
-                      <svg className="h-24 w-24" viewBox="0 0 100 100">
+                      <svg className="w-24 h-24" viewBox="0 0 100 100">
                         <circle
                           className="text-gray-200 dark:text-slate-700"
                           strokeWidth="8"
@@ -395,15 +406,15 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                     </div>
                     <div>
                       {(analysisResults?.compatibilityScore || 0) >= 80 ? (
-                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 hover:bg-green-200 dark:hover:bg-green-800">
+                        <Badge className="text-green-800 bg-green-100 dark:bg-green-900 dark:text-green-100 hover:bg-green-200 dark:hover:bg-green-800">
                           Strong Match
                         </Badge>
                       ) : (analysisResults?.compatibilityScore || 0) >= 60 ? (
-                        <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100 hover:bg-yellow-200 dark:hover:bg-yellow-800">
+                        <Badge className="text-yellow-800 bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-100 hover:bg-yellow-200 dark:hover:bg-yellow-800">
                           Good Match
                         </Badge>
                       ) : (
-                        <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100 hover:bg-red-200 dark:hover:bg-red-800">
+                        <Badge className="text-red-800 bg-red-100 dark:bg-red-900 dark:text-red-100 hover:bg-red-200 dark:hover:bg-red-800">
                           Needs Improvement
                         </Badge>
                       )}
@@ -428,11 +439,11 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                         {analysisResults?.improvementSuggestions.map(
                           (category, index) => (
                             <AccordionItem key={index} value={`item-${index}`}>
-                              <AccordionTrigger className="text-left font-medium">
+                              <AccordionTrigger className="font-medium text-left">
                                 {category.category}
                               </AccordionTrigger>
                               <AccordionContent>
-                                <ul className="list-disc pl-6 space-y-2">
+                                <ul className="pl-6 space-y-2 list-disc">
                                   {category.suggestions.map((suggestion, i) => (
                                     <li
                                       key={i}
@@ -456,7 +467,7 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                     <CardContent className="pt-6">
                       <div className="space-y-4">
                         <div className="flex items-center gap-2">
-                          <AlertCircle className="h-5 w-5 text-amber-500" />
+                          <AlertCircle className="w-5 h-5 text-amber-500" />
                           <h4 className="font-medium dark:text-white">
                             Keywords not found in your resume
                           </h4>
@@ -474,7 +485,7 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                             ),
                           )}
                         </div>
-                        <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-900 dark:border-blue-800">
+                        <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900 dark:border-blue-800">
                           <AlertDescription className="text-blue-800 dark:text-blue-100">
                             Consider adding these keywords to your resume to
                             improve your match score.
@@ -490,7 +501,7 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                     <CardContent className="pt-6">
                       <div className="space-y-4">
                         <div className="flex items-center gap-2">
-                          <CheckCircle className="h-5 w-5 text-green-500" />
+                          <CheckCircle className="w-5 h-5 text-green-500" />
                           <h4 className="font-medium dark:text-white">
                             Keywords found in your resume
                           </h4>
@@ -501,14 +512,14 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                               <Badge
                                 key={index}
                                 variant="outline"
-                                className="bg-green-50 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-100 dark:border-green-800"
+                                className="text-green-800 border-green-200 bg-green-50 dark:bg-green-900 dark:text-green-100 dark:border-green-800"
                               >
                                 {keyword}
                               </Badge>
                             ),
                           )}
                         </div>
-                        <Alert className="bg-green-50 border-green-200 dark:bg-green-900 dark:border-green-800">
+                        <Alert className="border-green-200 bg-green-50 dark:bg-green-900 dark:border-green-800">
                           <AlertDescription className="text-green-800 dark:text-green-100">
                             Great job! These keywords from the job description
                             were found in your resume.
@@ -523,7 +534,7 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
           )}
         </CardContent>
 
-        <CardFooter className="flex flex-col items-start border-t pt-6">
+        <CardFooter className="flex flex-col items-start pt-6 border-t">
           <p className="text-sm text-gray-500 dark:text-slate-400">
             This tool is provided as a free, nonprofit service to help job
             seekers improve their application materials. Your resume data is not

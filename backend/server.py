@@ -1,16 +1,88 @@
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, send_file
 from flask_cors import CORS
 from aiSummary import stream_ai_summary, get_ai_resume_suggestions
 import json 
 import time
 import re
 import io
+import os
+import pandas as pd
 import mammoth
 from PyPDF2 import PdfReader
 from scraper import scrape_job_posting  # Import the scraper function
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
+
+# In-memory storage for job data (for small-scale use)
+saved_jobs = []
+
+def save_job_data(job_data):
+    """Save job data to the in-memory storage and return its ID"""
+    job_id = len(saved_jobs)
+    job_data['id'] = job_id
+    job_data['timestamp'] = time.strftime("%Y-%m-%d %H:%M:%S")
+    saved_jobs.append(job_data)
+    return job_id
+
+@app.route('/export_excel', methods=['GET'])
+def export_excel():
+    """Export saved job data as an Excel file"""
+    try:
+        # If there are no saved jobs, return an error
+        if not saved_jobs:
+            return jsonify({"error": "No job data available to export"}), 404
+        
+        # Create a DataFrame from the saved jobs
+        df = pd.DataFrame(saved_jobs)
+        
+        # Ensure requirements, responsibilities, and keywords are formatted properly for Excel
+        for col in ['requirements', 'responsibilities', 'keywords']:
+            if col in df.columns:
+                df[col] = df[col].apply(lambda x: "\n• " + "\n• ".join(x) if isinstance(x, list) else x)
+        
+        # Create an in-memory Excel file
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, sheet_name='Job Postings', index=False)
+            
+            # Auto-adjust column widths
+            worksheet = writer.sheets['Job Postings']
+            for i, col in enumerate(df.columns):
+                # Set column width based on content
+                max_width = max(df[col].astype(str).map(len).max(), len(col)) + 2
+                worksheet.set_column(i, i, min(max_width, 50))  # Cap at 50 characters width
+        
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name='job_postings.xlsx'
+        )
+    except Exception as e:
+        print(f"Error exporting Excel: {str(e)}")
+        return jsonify({"error": f"Failed to export Excel: {str(e)}"}), 500
+
+@app.route('/save_job', methods=['POST'])
+def save_job():
+    """Save job data for future export"""
+    try:
+        job_data = request.json
+        if not job_data:
+            return jsonify({"error": "No job data provided"}), 400
+        
+        job_id = save_job_data(job_data)
+        return jsonify({"success": True, "message": "Job saved successfully", "job_id": job_id}), 201
+    except Exception as e:
+        print(f"Error saving job: {str(e)}")
+        return jsonify({"error": f"Failed to save job: {str(e)}"}), 500
+
+@app.route('/get_saved_jobs', methods=['GET'])
+def get_saved_jobs():
+    """Get all saved jobs"""
+    return jsonify(saved_jobs), 200
 
 @app.route('/analyze_job_posting', methods=['POST', 'GET'])
 def analyze_job_posting():
@@ -22,7 +94,7 @@ def analyze_job_posting():
         data = request.json
         description = data.get('description')
     else:
-        description = request.args.get('description')
+        description = request.args.get('description') # this is the job description from the frontend
     
     if not description:
         return jsonify({'error': 'Description is required'}), 400
@@ -185,6 +257,9 @@ def scrape_job_url():
             if not job_data.get("keywords") or len(job_data["keywords"]) == 0:
                 job_data["keywords"] = ["Skills", "Experience", "Communication"]
             
+            # Add source URL to the job data
+            job_data["url"] = url
+            
             print("Job analysis complete, returning data")
             return jsonify(job_data), 200
         except Exception as scrape_error:
@@ -205,6 +280,8 @@ def scrape_job_url():
                 )
                 
                 result = json.loads(response.choices[0].message.content)
+                # Add source URL to the result
+                result["url"] = url
                 print("Successfully got direct analysis from Gemini")
                 return jsonify(result), 200
             except Exception as ai_error:

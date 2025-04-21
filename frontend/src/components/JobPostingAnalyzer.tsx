@@ -25,9 +25,13 @@ import {
   Link as LinkIcon,
   Brain,
   EyeIcon,
+  FileSpreadsheet,
+  Download,
+  Save,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "@/components/ui/use-toast";
 
 interface JobPostingAnalyzerProps {
   onAnalysisComplete?: (analysisData: JobAnalysisData) => void;
@@ -46,12 +50,14 @@ interface JobAnalysisData {
 }
 
 const JobPostingAnalyzer = ({
-  onAnalysisComplete = () => {},
+  onAnalysisComplete = () => {}, // functions are passed in as props
   initialJobDescription = "",
   onSaveDescription = () => {},
 }: JobPostingAnalyzerProps) => {
   const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
-  const [jobDescription, setJobDescription] = useState(initialJobDescription || "");
+  const [jobDescription, setJobDescription] = useState(
+    initialJobDescription || "",
+  );
   const [jobUrl, setJobUrl] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisComplete, setAnalysisComplete] = useState(false);
@@ -68,6 +74,8 @@ const JobPostingAnalyzer = ({
     location: "",
     salary: "",
   });
+  const [isSaving, setIsSaving] = useState(false);
+  const [jobSaved, setJobSaved] = useState(false);
 
   // Initialize from props if available
   useEffect(() => {
@@ -224,56 +232,60 @@ const JobPostingAnalyzer = ({
       } else if (inputMethod === "url") {
         // Call the web scraping API
         console.log("URL to be scraped:", jobUrl);
-        
+
         try {
           setStreamingOutput("Starting scraping process...\n");
-          
-          const response = await fetch('http://localhost:5317/scrape_job_url', {
-            method: 'POST',
+
+          const response = await fetch("http://localhost:5317/scrape_job_url", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
             body: JSON.stringify({ url: jobUrl }),
           });
 
           if (!response.ok) {
-            throw new Error('Failed to scrape job posting');
+            throw new Error("Failed to scrape job posting");
           }
 
-          setStreamingOutput(prev => prev + "Job posting scraped successfully!\nAnalyzing content...\n");
-          
+          setStreamingOutput(
+            (prev) =>
+              prev +
+              "Job posting scraped successfully!\nAnalyzing content...\n",
+          );
+
           const data = await response.json();
           console.log("Scraped job data:", data);
-          
+
           // Create analysis data from scraped data
           const scrapedData = {
             title: data.title || "Job Title",
             company: data.company || "Company Name",
-            requirements: Array.isArray(data.requirements) ? data.requirements : [],
-            responsibilities: Array.isArray(data.responsibilities) ? data.responsibilities : [],
+            requirements: Array.isArray(data.requirements)
+              ? data.requirements
+              : [],
+            responsibilities: Array.isArray(data.responsibilities)
+              ? data.responsibilities
+              : [],
             keywords: Array.isArray(data.keywords) ? data.keywords : [],
             location: data.location || "Location",
             salary: data.salary || "Salary Range",
           };
-          
+
           // Save the scraped job description
           if (data.description) {
             setJobDescription(data.description);
             onSaveDescription(data.description);
           }
-          
+
           console.log("Final scraped analysis data:", scrapedData);
-          
-          localStorage.setItem(
-            "analysisData",
-            JSON.stringify(scrapedData),
-          );
-          
+
+          localStorage.setItem("analysisData", JSON.stringify(scrapedData));
+
           setAnalysisData(scrapedData);
           setAnalysisComplete(true);
           setIsAnalyzing(false);
           onAnalysisComplete(scrapedData);
-          
         } catch (err) {
           console.error("Error scraping URL:", err);
           setError(`Failed to scrape job URL: ${err}`);
@@ -300,6 +312,63 @@ const JobPostingAnalyzer = ({
     setAnalysisComplete(false);
     setError(null);
     setStreamingOutput("");
+  };
+
+  const handleSaveJob = async () => {
+    setIsSaving(true);
+    try {
+      const response = await fetch("http://localhost:5317/save_job", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...analysisData,
+          description: jobDescription,
+          url: jobUrl || "Manually entered",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save job data");
+      }
+
+      const result = await response.json();
+      setJobSaved(true);
+      toast({
+        title: "Success!",
+        description: "Job saved successfully and is available for export.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Error saving job:", error);
+      toast({
+        title: "Error!",
+        description: "Failed to save job data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      // First, ensure the job is saved
+      if (!jobSaved) {
+        await handleSaveJob();
+      }
+
+      // Open the export URL in a new tab or trigger download
+      window.open("http://localhost:5317/export_excel", "_blank");
+    } catch (error) {
+      console.error("Error exporting to Excel:", error);
+      toast({
+        title: "Export Failed",
+        description: "Could not export to Excel. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -342,12 +411,12 @@ const JobPostingAnalyzer = ({
 
                 <TabsContent value="url" className="space-y-4">
                   <div className="flex flex-col space-y-2">
-                    <p className="text-sm text-muted-foreground mb-2">
+                    <p className="mb-2 text-sm text-muted-foreground">
                       Enter the URL of the job posting. Our system will scrape
                       and analyze the content.
                     </p>
                     <div className="flex items-center space-x-2">
-                      <LinkIcon className="h-4 w-4 text-muted-foreground" />
+                      <LinkIcon className="w-4 h-4 text-muted-foreground" />
                       <Input
                         placeholder="https://example.com/job-posting"
                         value={jobUrl}
@@ -357,12 +426,13 @@ const JobPostingAnalyzer = ({
                       />
                     </div>
                     {inputMethod === "url" && (
-                      <Alert className="mt-4 bg-blue-50 border-blue-200 text-black">
-                        <AlertCircle className="h-4 w-4 text-blue-500 dark:text-black" />
+                      <Alert className="mt-4 text-black border-blue-200 bg-blue-50">
+                        <AlertCircle className="w-4 h-4 text-blue-500 dark:text-black" />
                         <AlertTitle>Web Scraping Available</AlertTitle>
                         <AlertDescription>
-                          Enter a job posting URL from LinkedIn, Indeed, or other major job sites. 
-                          Our system will attempt to scrape and analyze the content automatically.
+                          Enter a job posting URL from LinkedIn, Indeed, or
+                          other major job sites. Our system will attempt to
+                          scrape and analyze the content automatically.
                         </AlertDescription>
                       </Alert>
                     )}
@@ -372,7 +442,7 @@ const JobPostingAnalyzer = ({
 
               {error && (
                 <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
+                  <AlertCircle className="w-4 h-4" />
                   <AlertTitle>Error</AlertTitle>
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
@@ -381,7 +451,7 @@ const JobPostingAnalyzer = ({
               {/* AI Thinking Stream Toggle */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <Brain className="h-4 w-4 text-slate-500" />
+                  <Brain className="w-4 h-4 text-slate-500" />
                   <span className="text-sm font-medium">Show AI Thinking</span>
                 </div>
                 <Switch
@@ -393,15 +463,15 @@ const JobPostingAnalyzer = ({
 
               {/* Streaming output */}
               {showStreaming && (isAnalyzing || streamingOutput) && (
-                <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md">
+                <div className="p-3 mt-4 border rounded-md bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700">
                   <div className="flex items-center gap-2 mb-2">
-                    <EyeIcon className="h-4 w-4 text-blue-500" />
+                    <EyeIcon className="w-4 h-4 text-blue-500" />
                     <span className="text-sm font-medium">AI Processing</span>
                     {isAnalyzing && (
-                      <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                      <Loader2 className="w-4 h-4 ml-2 animate-spin" />
                     )}
                   </div>
-                  <div className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300 font-mono">
+                  <div className="font-mono text-sm whitespace-pre-wrap text-slate-700 dark:text-slate-300">
                     {streamingOutput || "Waiting for first response..."}
                   </div>
                 </div>
@@ -413,10 +483,10 @@ const JobPostingAnalyzer = ({
                 <h3 className="text-xl font-semibold">{analysisData.title}</h3>
                 <p className="text-muted-foreground">{analysisData.company}</p>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  <Badge variant="outline" className="bg-blue-50 text-black">
+                  <Badge variant="outline" className="text-black bg-blue-50">
                     {analysisData.location}
                   </Badge>
-                  <Badge variant="outline" className="bg-green-50 text-black">
+                  <Badge variant="outline" className="text-black bg-green-50">
                     {analysisData.salary}
                   </Badge>
                 </div>
@@ -438,7 +508,7 @@ const JobPostingAnalyzer = ({
                         <AccordionItem value="requirements">
                           <AccordionTrigger>Job Requirements</AccordionTrigger>
                           <AccordionContent>
-                            <ul className="list-disc pl-5 space-y-2">
+                            <ul className="pl-5 space-y-2 list-disc">
                               {(analysisData.requirements || []).map(
                                 (req, index) => (
                                   <li key={index}>{req}</li>
@@ -461,7 +531,7 @@ const JobPostingAnalyzer = ({
                             Job Responsibilities
                           </AccordionTrigger>
                           <AccordionContent>
-                            <ul className="list-disc pl-5 space-y-2">
+                            <ul className="pl-5 space-y-2 list-disc">
                               {(analysisData.responsibilities || []).map(
                                 (resp, index) => (
                                   <li key={index}>{resp}</li>
@@ -478,7 +548,7 @@ const JobPostingAnalyzer = ({
                 <TabsContent value="keywords" className="mt-4">
                   <Card>
                     <CardContent className="pt-6">
-                      <h3 className="text-lg font-medium mb-4">
+                      <h3 className="mb-4 text-lg font-medium">
                         Key Skills & Keywords
                       </h3>
                       <div className="flex flex-wrap gap-2">
@@ -493,8 +563,8 @@ const JobPostingAnalyzer = ({
                 </TabsContent>
               </Tabs>
 
-              <Alert className="bg-blue-50 border-blue-200 dark:bg-slate-700 dark:border-slate-600">
-                <CheckCircle className="h-4 w-4 text-black dark:text-white" />
+              <Alert className="border-blue-200 bg-blue-50 dark:bg-slate-700 dark:border-slate-600">
+                <CheckCircle className="w-4 h-4 text-black dark:text-white" />
                 <AlertTitle className="text-slate-700 dark:text-white">
                   Analysis Complete
                 </AlertTitle>
@@ -525,7 +595,7 @@ const JobPostingAnalyzer = ({
               >
                 {isAnalyzing ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Analyzing...
                   </>
                 ) : (
@@ -538,7 +608,34 @@ const JobPostingAnalyzer = ({
               <Button variant="outline" onClick={handleClear}>
                 Analyze Another Job
               </Button>
-              <Button>Save Analysis</Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleSaveJob}
+                  disabled={isSaving || jobSaved}
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : jobSaved ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Saved
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Job
+                    </>
+                  )}
+                </Button>
+                <Button onClick={handleExportExcel}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Export to Excel
+                </Button>
+              </div>
             </>
           )}
         </CardFooter>
