@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Upload, FileText, AlertCircle, CheckCircle, X } from "lucide-react";
+import { Upload, FileText, AlertCircle, CheckCircle, X, HelpCircle } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,61 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+// AI Models configuration - matches backend and JobPostingAnalyzer
+interface AIModel {
+  id: string;
+  name: string;
+  inputPrice: string;
+  outputPrice: string;
+  description: string;
+}
+
+const aiModels: AIModel[] = [
+  {
+    id: "mistralai/mixtral-8x7b-instruct",
+    name: "Mixtral 8x7B (Free)",
+    inputPrice: "$0.00/M tokens",
+    outputPrice: "$0.00/M tokens", 
+    description: "Free, powerful open-source model"
+  },
+  {
+    id: "google/gemini-2.0-flash-lite-001",
+    name: "Gemini Flash Lite",
+    inputPrice: "$0.075/M tokens",
+    outputPrice: "$0.30/M tokens",
+    description: "Fast processing with good accuracy"
+  },
+  {
+    id: "google/gemini-2.0-pro-001",
+    name: "Gemini Pro",
+    inputPrice: "$0.25/M tokens",
+    outputPrice: "$0.75/M tokens", 
+    description: "High accuracy with detailed analysis"
+  },
+  {
+    id: "anthropic/claude-3-5-sonnet",
+    name: "Claude 3.5 Sonnet",
+    inputPrice: "$3.00/M tokens",
+    outputPrice: "$15.00/M tokens",
+    description: "Advanced analysis with excellent detail"
+  }
+];
 
 interface ResumeAnalyzerProps {
   jobDescription?: string;
@@ -45,6 +100,7 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
   const [file, setFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisComplete, setAnalysisComplete] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<string>(aiModels[0].id);
   const [analysisResults, setAnalysisResults] = useState<{
     compatibilityScore: number;
     missingKeywords: string[];
@@ -150,10 +206,11 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
 
     setIsAnalyzing(true);
 
-    // forms let you send files and other data types to the server
+    // Add model to form data
     const form = new FormData();
     form.append("resume", file);
     form.append("analysisData", localStorage.getItem("analysisData") || "");
+    form.append("model", selectedModel);  // Send the selected model
 
     try {
       // Resume analysis logic here
@@ -243,7 +300,7 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
             <div className="space-y-6">
               {!hasJobDescription && !savedJobData ? (
                 <Alert variant="destructive" className="mb-4">
-                  <AlertCircle className="w-4 h-4" />
+                  <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Job description required</AlertTitle>
                   <AlertDescription>
                     Please provide a job description first to compare your
@@ -259,8 +316,8 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                   </AlertDescription>
                 </Alert>
               ) : savedJobData ? (
-                <Alert className="mb-4 border-green-200 bg-green-50 dark:bg-green-900 dark:border-green-800">
-                  <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                <Alert className="mb-4 bg-green-50 border-green-200 dark:bg-green-900 dark:border-green-800">
+                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                   <AlertTitle className="text-green-800 dark:text-green-100">
                     Using saved job data
                   </AlertTitle>
@@ -271,6 +328,74 @@ const ResumeAnalyzer: React.FC<ResumeAnalyzerProps> = ({
                   </AlertDescription>
                 </Alert>
               ) : null}
+
+              {/* AI Model Selection Dropdown */}
+              <div className="p-4 mb-4 border rounded-md bg-gray-50 dark:bg-slate-800">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-md font-medium text-gray-700 dark:text-slate-200">AI Model Selection</h3>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="h-4 w-4 text-gray-400 dark:text-slate-400 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-md p-4">
+                          <p className="font-semibold mb-2">Choose Your AI Assistant</p>
+                          <p className="mb-2">The model you select will analyze your resume against the job requirements.</p>
+                          <ul className="text-xs space-y-1">
+                            <li><span className="font-medium">Mixtral 8x7B:</span> Free model, powerful open-source</li>
+                            <li><span className="font-medium">Gemini Models:</span> Premium analysis with pricing based on usage</li>
+                            <li><span className="font-medium">Claude 3.5:</span> Most expensive but highest quality</li>
+                          </ul>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
+
+                <Select value={selectedModel} onValueChange={setSelectedModel}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select an AI model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Available Models</SelectLabel>
+                      {aiModels.map((model) => (
+                        <SelectItem key={model.id} value={model.id}>
+                          <div className="flex flex-col">
+                            <span>{model.name}</span>
+                            <span className="text-xs text-muted-foreground">{model.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                  {aiModels.map((model) => (
+                    model.id === selectedModel && (
+                      <div key={model.id} className="p-3 bg-gray-100 dark:bg-slate-700 rounded-md">
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium">{model.name}</span>
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-slate-300 mb-2">{model.description}</p>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="p-1.5 bg-blue-100 text-blue-800 rounded-md text-center dark:bg-blue-900 dark:text-blue-100">
+                            Input: {model.inputPrice}
+                          </div>
+                          <div className="p-1.5 bg-green-100 text-green-800 rounded-md text-center dark:bg-green-900 dark:text-green-100">
+                            Output: {model.outputPrice}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  ))}
+                  <div className="col-span-1 md:col-span-2 text-xs text-gray-500 dark:text-gray-400 italic mt-1">
+                    Resume analysis typically costs: $0.00 with free model or $0.05-$0.25 with paid models.
+                  </div>
+                </div>
+              </div>
 
               <div
                 className="p-10 text-center transition-colors border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800"

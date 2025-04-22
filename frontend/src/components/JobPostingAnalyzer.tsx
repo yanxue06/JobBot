@@ -28,10 +28,66 @@ import {
   FileSpreadsheet,
   Download,
   Save,
+  HelpCircle,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+// AI Models configuration - matches backend AI_MODELS
+interface AIModel {
+  id: string;
+  name: string;
+  inputPrice: string;
+  outputPrice: string;
+  description: string;
+}
+
+const aiModels: AIModel[] = [
+  {
+    id: "mistralai/mixtral-8x7b-instruct",
+    name: "Mixtral 8x7B (Free)",
+    inputPrice: "$0.00/M tokens",
+    outputPrice: "$0.00/M tokens", 
+    description: "Free, powerful open-source model"
+  },
+  {
+    id: "google/gemini-2.0-flash-lite-001",
+    name: "Gemini Flash Lite",
+    inputPrice: "$0.075/M tokens",
+    outputPrice: "$0.30/M tokens",
+    description: "Fast processing with good accuracy"
+  },
+  {
+    id: "google/gemini-2.0-pro-001",
+    name: "Gemini Pro",
+    inputPrice: "$0.25/M tokens",
+    outputPrice: "$0.75/M tokens", 
+    description: "High accuracy with detailed analysis"
+  },
+  {
+    id: "anthropic/claude-3-5-sonnet",
+    name: "Claude 3.5 Sonnet",
+    inputPrice: "$3.00/M tokens",
+    outputPrice: "$15.00/M tokens",
+    description: "Advanced analysis with excellent detail"
+  }
+];
 
 interface JobPostingAnalyzerProps {
   onAnalysisComplete?: (analysisData: JobAnalysisData) => void;
@@ -65,6 +121,7 @@ const JobPostingAnalyzer = ({
   const [showStreaming, setShowStreaming] = useState(false);
   const [streamingOutput, setStreamingOutput] = useState("");
   const streamRef = useRef<EventSource | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string>(aiModels[0].id);
   const [analysisData, setAnalysisData] = useState<JobAnalysisData>({
     title: "",
     company: "",
@@ -120,9 +177,9 @@ const JobPostingAnalyzer = ({
           streamRef.current.close();
         }
 
-        // Set up server-sent events for streaming --> opening a connection from the server to the client
+        // Set up server-sent events for streaming with model parameter
         const eventSource = new EventSource(
-          `http://localhost:5317/analyze_job_posting?description=${encodeURIComponent(jobDescription)}`,
+          `http://localhost:5317/analyze_job_posting?description=${encodeURIComponent(jobDescription)}&model=${encodeURIComponent(selectedModel)}`,
         );
         streamRef.current = eventSource;
 
@@ -230,7 +287,7 @@ const JobPostingAnalyzer = ({
           setIsAnalyzing(false);
         };
       } else if (inputMethod === "url") {
-        // Call the web scraping API
+        // Call the web scraping API with selected model
         console.log("URL to be scraped:", jobUrl);
 
         try {
@@ -241,7 +298,10 @@ const JobPostingAnalyzer = ({
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ url: jobUrl }),
+            body: JSON.stringify({ 
+              url: jobUrl,
+              model: selectedModel 
+            }),
           });
 
           if (!response.ok) {
@@ -386,6 +446,73 @@ const JobPostingAnalyzer = ({
         <CardContent>
           {!analysisComplete ? (
             <div className="space-y-4">
+              {/* AI Model Selection Dropdown */}
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-medium">Select AI Model</h3>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-md p-4">
+                        <p className="font-semibold mb-2">AI Model Selection</p>
+                        <p className="mb-2">Choose which AI model will analyze your job description.</p>
+                        <ul className="text-xs space-y-1">
+                          <li><span className="font-medium">Mixtral 8x7B:</span> Free model, powerful open-source</li>
+                          <li><span className="font-medium">Gemini Flash Lite:</span> $0.075/M input + $0.30/M output</li>
+                          <li><span className="font-medium">Gemini Pro:</span> Premium model for detailed analysis</li>
+                          <li><span className="font-medium">Claude 3.5:</span> Most expensive but highest quality</li>
+                        </ul>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                
+                <Select value={selectedModel} onValueChange={setSelectedModel}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select an AI model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Available Models</SelectLabel>
+                      {aiModels.map((model) => (
+                        <SelectItem key={model.id} value={model.id}>
+                          <div className="flex flex-col">
+                            <span>{model.name}</span>
+                            <span className="text-xs text-muted-foreground">{model.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                  {aiModels.map((model) => (
+                    model.id === selectedModel && (
+                      <div key={model.id} className="p-3 bg-slate-100 dark:bg-slate-800 rounded-md">
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium">{model.name}</span>
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 mb-2">{model.description}</p>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="p-1.5 bg-blue-100 text-blue-800 rounded-md text-center dark:bg-blue-900 dark:text-blue-100">
+                            Input: {model.inputPrice}
+                          </div>
+                          <div className="p-1.5 bg-green-100 text-green-800 rounded-md text-center dark:bg-green-900 dark:text-green-100">
+                            Output: {model.outputPrice}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  ))}
+                  <div className="col-span-1 md:col-span-2 text-xs text-muted-foreground italic mt-1">
+                    Typical job analysis costs: $0.00 with free model or $0.01-$0.10 with paid models.
+                  </div>
+                </div>
+              </div>
+
               <Tabs
                 defaultValue="text"
                 className="w-full"
