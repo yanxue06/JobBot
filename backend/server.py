@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, Response, send_file
 from flask_cors import CORS
-from aiSummary import stream_ai_summary, get_ai_resume_suggestions
+from aiSummary import stream_ai_summary, get_ai_resume_suggestions, AI_MODELS
 import json 
 import time
 import re
@@ -84,17 +84,25 @@ def get_saved_jobs():
     """Get all saved jobs"""
     return jsonify(saved_jobs), 200
 
+@app.route('/get_ai_models', methods=['GET'])
+def get_ai_models():
+    """Get all available AI models with pricing info"""
+    return jsonify(AI_MODELS), 200
+
 @app.route('/analyze_job_posting', methods=['POST', 'GET'])
 def analyze_job_posting():
     print("Analyzing job posting")
     description = None
+    model = "mistralai/mixtral-8x7b-instruct"  # Default free model
     
     # Handle both POST JSON data and query parameters
     if request.method == 'POST' and request.is_json:
         data = request.json
         description = data.get('description')
+        model = data.get('model', model)  # Get selected model
     else:
-        description = request.args.get('description') # this is the job description from the frontend
+        description = request.args.get('description')
+        model = request.args.get('model', model)  # Get selected model from query params
     
     if not description:
         return jsonify({'error': 'Description is required'}), 400
@@ -102,11 +110,11 @@ def analyze_job_posting():
     def generate():
         summary = ""
         # Initial event to establish connection
-        yield "data: {\"text\": \"Starting analysis...\", \"complete\": false}\n\n"
+        yield f"data: {{\"text\": \"Starting analysis with {model}...\", \"complete\": false}}\n\n"
         time.sleep(0.1)  # Small delay to ensure client receives initial message
         
         try:
-            ai_stream = stream_ai_summary(description)
+            ai_stream = stream_ai_summary(description, model=model)
             for chunk in ai_stream:
                 if hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
                     delta = chunk.choices[0].delta.content
@@ -163,6 +171,7 @@ def scrape_job_url():
     try:
         data = request.json
         url = data.get('url')
+        model = data.get('model', "mistralai/mixtral-8x7b-instruct")  # Get model parameter
         
         if not url:
             return jsonify({'error': 'URL is required'}), 400
@@ -178,12 +187,12 @@ def scrape_job_url():
             job_data = scrape_job_posting(url)
             print(f"Scraped job data: {job_data.keys()}")
             
-            # Always enhance with Gemini API if we have a description
+            # Always enhance with AI API if we have a description
             if job_data.get("description"):
-                print("Enhancing scraped data with Gemini API...")
+                print(f"Enhancing scraped data with {model}...")
                 
-                # Use Gemini to analyze the description
-                ai_stream = stream_ai_summary(job_data["description"])
+                # Use selected model to analyze the description
+                ai_stream = stream_ai_summary(job_data["description"], model=model)
                 summary = ""
                 for chunk in ai_stream:
                     if hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
@@ -200,7 +209,7 @@ def scrape_job_url():
                     else:
                         ai_data = json.loads(summary)
                     
-                    print("AI data from Gemini:", ai_data.keys() if isinstance(ai_data, dict) else "Not a dictionary")
+                    print("AI data:", ai_data.keys() if isinstance(ai_data, dict) else "Not a dictionary")
                     
                     # Merge AI data with scraped data, but keep scraped data if it's already populated
                     if isinstance(ai_data, dict):
@@ -226,7 +235,7 @@ def scrape_job_url():
                             # Call the AI again with this explicit prompt
                             from aiSummary import client
                             response = client.chat.completions.create(
-                                model="google/gemini-2.0-flash-lite-001",
+                                model=model,  # Use the selected model here too
                                 messages=[
                                     {"role": "system", "content": "You are an expert job posting analyzer."},
                                     {"role": "user", "content": explicit_prompt},
@@ -265,13 +274,13 @@ def scrape_job_url():
         except Exception as scrape_error:
             print(f"Error during scraping process: {str(scrape_error)}")
             
-            # Try a direct Gemini analysis as a last resort
+            # Try a direct AI analysis as a last resort
             try:
                 from aiSummary import client
                 
-                print("Attempting direct URL analysis with Gemini")
+                print(f"Attempting direct URL analysis with {model}")
                 response = client.chat.completions.create(
-                    model="google/gemini-2.0-flash-lite-001",
+                    model=model,  # Use the selected model
                     messages=[
                         {"role": "system", "content": "You are an expert job posting analyzer."},
                         {"role": "user", "content": f"Analyze this job posting URL: {url}\n\nExtract and return a JSON object with these keys: title, company, requirements (array), responsibilities (array), keywords (array), location, salary. If you can't access the URL directly, make educated guesses based on the URL itself."},
@@ -282,7 +291,7 @@ def scrape_job_url():
                 result = json.loads(response.choices[0].message.content)
                 # Add source URL to the result
                 result["url"] = url
-                print("Successfully got direct analysis from Gemini")
+                print("Successfully got direct analysis")
                 return jsonify(result), 200
             except Exception as ai_error:
                 print(f"Final fallback also failed: {str(ai_error)}")
@@ -299,6 +308,7 @@ def analyze_resume():
     
     resume_file = request.files.get('resume')
     analysis_data_json = request.form.get('analysisData')
+    model = request.form.get('model', "mistralai/mixtral-8x7b-instruct")  # Get model from form data
 
     if not resume_file or not analysis_data_json:
         return jsonify({"error": "Missing required files or data"}), 400
@@ -331,9 +341,9 @@ def analyze_resume():
     if not extracted_text.strip():
         return jsonify({"error": "Could not extract text from the resume file."}), 400
     
-    # Get AI suggestions with the improved function
+    # Get AI suggestions with the selected model
     try:
-        result = get_ai_resume_suggestions(analysis_data, extracted_text)
+        result = get_ai_resume_suggestions(analysis_data, extracted_text, model=model)
         return jsonify(result), 200
     except Exception as e:
         print(f"Error generating suggestions: {str(e)}")
