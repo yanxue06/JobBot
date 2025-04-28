@@ -10,6 +10,7 @@ import pandas as pd
 import mammoth
 from PyPDF2 import PdfReader
 from scraper import scrape_job_posting  # Import the scraper function
+from resumeEditor import route_parse_resume, route_generate_suggestions, route_export_resume
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -349,5 +350,18 @@ def analyze_resume():
         print(f"Error generating suggestions: {str(e)}")
         return jsonify({"error": f"Error analyzing resume: {str(e)}"}), 500
 
+@app.route('/parse_resume', methods=['POST'])
+def parse_resume():
+    return route_parse_resume()
+
+@app.route('/generate_resume_suggestions', methods=['POST'])
+def generate_resume_suggestions():
+    return route_generate_suggestions()
+
+@app.route('/export_resume', methods=['POST'])
+def export_resume():
+    return route_export_resume()
+
 if __name__ == '__main__':
     app.run(debug=True, port=5317)
+

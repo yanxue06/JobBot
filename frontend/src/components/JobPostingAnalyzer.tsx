@@ -432,7 +432,7 @@ const JobPostingAnalyzer = ({
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto bg-background">
+    <div className="w-full max-w-4xl pb-10 mx-auto mt-10 bg-background">
       <Card className="shadow-md">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-primary">
@@ -447,18 +447,18 @@ const JobPostingAnalyzer = ({
           {!analysisComplete ? (
             <div className="space-y-4">
               {/* AI Model Selection Dropdown */}
-              <div className="space-y-2 mb-4">
+              <div className="mb-4 space-y-2">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-medium">Select AI Model</h3>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                        <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent className="max-w-md p-4">
-                        <p className="font-semibold mb-2">AI Model Selection</p>
+                        <p className="mb-2 font-semibold">AI Model Selection</p>
                         <p className="mb-2">Choose which AI model will analyze your job description.</p>
-                        <ul className="text-xs space-y-1">
+                        <ul className="space-y-1 text-xs">
                           <li><span className="font-medium">Mixtral 8x7B:</span> Free model, powerful open-source</li>
                           <li><span className="font-medium">Gemini Flash Lite:</span> $0.075/M input + $0.30/M output</li>
                           <li><span className="font-medium">Gemini Pro:</span> Premium model for detailed analysis</li>
@@ -488,14 +488,14 @@ const JobPostingAnalyzer = ({
                   </SelectContent>
                 </Select>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                <div className="grid grid-cols-1 gap-2 mt-2 md:grid-cols-2">
                   {aiModels.map((model) => (
                     model.id === selectedModel && (
-                      <div key={model.id} className="p-3 bg-slate-100 dark:bg-slate-800 rounded-md">
+                      <div key={model.id} className="p-3 rounded-md bg-slate-100 dark:bg-slate-800">
                         <div className="flex justify-between mb-1">
                           <span className="text-sm font-medium">{model.name}</span>
                         </div>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 mb-2">{model.description}</p>
+                        <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{model.description}</p>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="p-1.5 bg-blue-100 text-blue-800 rounded-md text-center dark:bg-blue-900 dark:text-blue-100">
                             Input: {model.inputPrice}
@@ -507,7 +507,7 @@ const JobPostingAnalyzer = ({
                       </div>
                     )
                   ))}
-                  <div className="col-span-1 md:col-span-2 text-xs text-muted-foreground italic mt-1">
+                  <div className="col-span-1 mt-1 text-xs italic md:col-span-2 text-muted-foreground">
                     Typical job analysis costs: $0.00 with free model or $0.01-$0.10 with paid models.
                   </div>
                 </div>
