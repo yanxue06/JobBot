@@ -9,9 +9,11 @@ import {
 } from "@/components/ui/card";
 import JobPostingAnalyzer from "./JobPostingAnalyzer";
 import ResumeAnalyzer from "./ResumeAnalyzer";
-import { BookOpen, Briefcase, FileText, Heart } from "lucide-react";
+import { BookOpen, Briefcase, FileText, Heart, ArrowRight } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import UserMenu from "@/components/auth/UserMenu";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 // Define the job analysis data interface
 interface JobAnalysisData {
@@ -24,10 +26,15 @@ interface JobAnalysisData {
   salary: string;
 }
 
-const Home = () => {
-  const [activeTab, setActiveTab] = useState<string>("job-posting");
+interface HomeProps {
+  defaultTab?: string;
+}
+
+const Home: React.FC<HomeProps> = ({ defaultTab = "job-posting" }) => {
+  const [activeTab, setActiveTab] = useState<string>(defaultTab);
   const [jobDescription, setJobDescription] = useState<string>("");
-  const [jobAnalysisData, setJobAnalysisData] = useState<JobAnalysisData | null>(null);
+  const [jobAnalysisData, setJobAnalysisData] =
+    useState<JobAnalysisData | null>(null);
 
   // Load saved job data from localStorage on mount
   useEffect(() => {
@@ -36,7 +43,7 @@ const Home = () => {
       if (savedData) {
         const parsedData = JSON.parse(savedData);
         setJobAnalysisData(parsedData);
-        
+
         // If we have the original job description, load that too
         const savedJobDescription = localStorage.getItem("jobDescription");
         if (savedJobDescription) {
@@ -66,21 +73,10 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       {/* Header */}
-      <header className="sticky top-0 z-10 px-4 py-3 bg-white border-b dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-        <div className="container flex items-center justify-between max-w-6xl mx-auto">
-          <h2 className="text-xl font-semibold text-slate-800 dark:text-white">
-            JobBot
-          </h2>
-          <div className="flex items-center gap-4">
-            <ThemeToggle />
-            <UserMenu />
-          </div>
-        </div>
-      </header>
+
 
       {/* Hero Section */}
-
-      <section className="px-4 py-16 bg-gradient-to-b from-blue-50 to-white dark:from-slate-800 dark:to-slate-900 md:py-24">
+      <section className="px-4 py-10 bg-gradient-to-b from-blue-50 to-white dark:from-slate-800 dark:to-slate-900 md:py-16">
         <div className="container max-w-6xl mx-auto">
           <div className="flex flex-col items-center justify-between gap-8 md:flex-row">
             <div className="md:w-1/2">
@@ -92,7 +88,7 @@ const Home = () => {
                 analyze job postings and improve your resume to increase your
                 chances of landing interviews.
               </p>
-              <div className="flex flex-wrap gap-4">
+              <div className="flex flex-wrap gap-4 mb-4">
                 <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm dark:bg-slate-800">
                   <Briefcase className="w-5 h-5 text-blue-500" />
                   <span className="text-slate-700 dark:text-slate-200">
@@ -105,20 +101,13 @@ const Home = () => {
                     Resume Optimization
                   </span>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm dark:bg-slate-800">
-                  <Heart className="w-5 h-5 text-blue-500" />
-                  <span className="text-slate-700 dark:text-slate-200">
-                    Completely Non-profitable
-                  </span>
-                </div>
               </div>
-            </div>
-            <div className="md:w-1/2">
-              <img
-                src="https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=800&q=80"
-                alt="Job application process"
-                className="w-full rounded-lg shadow-md"
-              />
+              <Link to="/resume-editor">
+                <Button className="flex items-center gap-2">
+                  Try our new Resume Editor
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -139,7 +128,7 @@ const Home = () => {
             </CardHeader>
             <CardContent className="p-0">
               <Tabs
-                defaultValue="job-posting"
+                defaultValue={defaultTab}
                 value={activeTab}
                 onValueChange={setActiveTab}
                 className="w-full"
@@ -162,7 +151,7 @@ const Home = () => {
                 </TabsList>
 
                 <TabsContent value="job-posting" className="m-0">
-                  <JobPostingAnalyzer 
+                  <JobPostingAnalyzer
                     onAnalysisComplete={handleJobAnalysisComplete}
                     initialJobDescription={jobDescription}
                     onSaveDescription={(desc) => {
@@ -172,7 +161,7 @@ const Home = () => {
                   />
                 </TabsContent>
                 <TabsContent value="resume" className="m-0">
-                  <ResumeAnalyzer 
+                  <ResumeAnalyzer
                     jobDescription={jobDescription}
                     onRequestJobDescription={switchToJobPostingTab}
                   />
@@ -183,30 +172,26 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Mission Statement */}
-
+      {/* Resume Editor Promo */}
       <section className="px-4 py-12 bg-blue-50 dark:bg-slate-800">
         <div className="container max-w-4xl mx-auto text-center">
           <h2 className="mb-4 text-2xl font-semibold md:text-3xl text-slate-800 dark:text-white">
-            Our Mission
+            New! Resume Editor with AI Suggestions
           </h2>
           <p className="max-w-3xl mx-auto mb-6 text-slate-600 dark:text-slate-300">
-            We believe everyone deserves access to quality job application
-            assistance. This tool is completely free and designed to democratize
-            access to AI-powered job search tools that would otherwise be
-            expensive or inaccessible.
+            Try our new resume editor that allows you to upload your existing resume,
+            edit it with AI-powered suggestions, and export it in DOCX or PDF format.
           </p>
-
           <div className="flex flex-wrap justify-center gap-4">
             <div className="max-w-xs p-6 bg-white rounded-lg shadow-sm dark:bg-slate-700">
               <div className="flex items-center justify-center w-12 h-12 p-3 mx-auto mb-4 bg-blue-100 rounded-full dark:bg-blue-900">
                 <Heart className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <h3 className="mb-2 font-medium text-slate-800 dark:text-white">
-                Completely Non-profitable
+                Free to Use
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                You are charged for the amount you amount of tokens you use. We
+                You are charged only for the AI tokens you use. We
                 make no profit from this service.
               </p>
             </div>
@@ -216,19 +201,24 @@ const Home = () => {
                 <Briefcase className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <h3 className="mb-2 font-medium text-slate-800 dark:text-white">
-                Equal Opportunity
+                AI-Powered Editing
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                We're committed to helping job seekers from all backgrounds
-                improve their applications.
+                Get tailored suggestions to strengthen your resume based on the job description.
               </p>
             </div>
           </div>
+          
+          <Link to="/resume-editor" className="inline-block mt-6">
+            <Button size="lg" className="flex items-center gap-2">
+              Open Resume Editor
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </Link>
         </div>
       </section>
 
       {/* Footer */}
-
       <footer className="px-4 py-8 text-white bg-slate-800 dark:bg-slate-900">
         <div className="container max-w-6xl mx-auto">
           <div className="flex flex-col items-center justify-between md:flex-row">

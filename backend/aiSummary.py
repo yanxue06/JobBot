@@ -24,13 +24,45 @@ SYSTEM = {
     )
 }
 
+AI_MODELS = [
+    {
+        "id": "mistralai/mixtral-8x7b-instruct",
+        "name": "Mixtral 8x7B (Free)",
+        "input_price": "$0.00/M tokens",
+        "output_price": "$0.00/M tokens", 
+        "description": "Free, powerful open-source model"
+    },
+    {
+        "id": "google/gemini-2.0-flash-lite-001",
+        "name": "Gemini Flash Lite",
+        "input_price": "$0.075/M tokens",
+        "output_price": "$0.30/M tokens",
+        "description": "Fast processing with good accuracy"
+    },
+    {
+        "id": "google/gemini-2.0-pro-001",
+        "name": "Gemini Pro",
+        "input_price": "$0.25/M tokens",
+        "output_price": "$0.75/M tokens",
+        "description": "High accuracy with detailed analysis"
+    },
+    {
+        "id": "anthropic/claude-3-5-sonnet",
+        "name": "Claude 3.5 Sonnet",
+        "input_price": "$3.00/M tokens",
+        "output_price": "$15.00/M tokens",
+        "description": "Advanced analysis with excellent detail"
+    }
+]
 
-def stream_ai_summary(job_description: str) -> str:
+def stream_ai_summary(job_description: str, model: str = "mistralai/mixtral-8x7b-instruct") -> str:
     """
-    Ask Gemini to distill a job description down to its key points.
-    Returns the plain‐text summary.
+    Ask AI to distill a job description down to its key points.
+    
+    Parameters:
+        job_description: The job description text
+        model: The model ID to use for analysis
     """
-
     USER = {
         "role": "user",
         "content": (
@@ -40,7 +72,7 @@ def stream_ai_summary(job_description: str) -> str:
     }
     
     response = client.chat.completions.create(
-        model="google/gemini-2.0-flash-lite-001",
+        model=model,
         messages=[
             SYSTEM,
             USER,
@@ -48,13 +80,13 @@ def stream_ai_summary(job_description: str) -> str:
         stream=True,
     )
     
-
-    return response # iterable of chunks
+    return response
 
 
 def get_ai_resume_suggestions(
     job_details,
-    resume_text
+    resume_text,
+    model="mistralai/mixtral-8x7b-instruct"
 ) -> dict:
     """
     Given a job description and a candidate's resume text,
@@ -118,7 +150,7 @@ def get_ai_resume_suggestions(
     """
 
     response = client.chat.completions.create(
-        model="google/gemini-2.0-flash-lite-001",
+        model=model,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},

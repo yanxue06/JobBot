@@ -1,28 +1,109 @@
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, send_file
 from flask_cors import CORS
-from aiSummary import stream_ai_summary, get_ai_resume_suggestions
+from aiSummary import stream_ai_summary, get_ai_resume_suggestions, AI_MODELS
 import json 
 import time
 import re
 import io
+import os
+import pandas as pd
 import mammoth
 from PyPDF2 import PdfReader
 from scraper import scrape_job_posting  # Import the scraper function
+from resumeEditor import route_parse_resume, route_generate_suggestions, route_export_resume
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
+
+# In-memory storage for job data (for small-scale use)
+saved_jobs = []
+
+def save_job_data(job_data):
+    """Save job data to the in-memory storage and return its ID"""
+    job_id = len(saved_jobs)
+    job_data['id'] = job_id
+    job_data['timestamp'] = time.strftime("%Y-%m-%d %H:%M:%S")
+    saved_jobs.append(job_data)
+    return job_id
+
+@app.route('/export_excel', methods=['GET'])
+def export_excel():
+    """Export saved job data as an Excel file"""
+    try:
+        # If there are no saved jobs, return an error
+        if not saved_jobs:
+            return jsonify({"error": "No job data available to export"}), 404
+        
+        # Create a DataFrame from the saved jobs
+        df = pd.DataFrame(saved_jobs)
+        
+        # Ensure requirements, responsibilities, and keywords are formatted properly for Excel
+        for col in ['requirements', 'responsibilities', 'keywords']:
+            if col in df.columns:
+                df[col] = df[col].apply(lambda x: "\n• " + "\n• ".join(x) if isinstance(x, list) else x)
+        
+        # Create an in-memory Excel file
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, sheet_name='Job Postings', index=False)
+            
+            # Auto-adjust column widths
+            worksheet = writer.sheets['Job Postings']
+            for i, col in enumerate(df.columns):
+                # Set column width based on content
+                max_width = max(df[col].astype(str).map(len).max(), len(col)) + 2
+                worksheet.set_column(i, i, min(max_width, 50))  # Cap at 50 characters width
+        
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name='job_postings.xlsx'
+        )
+    except Exception as e:
+        print(f"Error exporting Excel: {str(e)}")
+        return jsonify({"error": f"Failed to export Excel: {str(e)}"}), 500
+
+@app.route('/save_job', methods=['POST'])
+def save_job():
+    """Save job data for future export"""
+    try:
+        job_data = request.json
+        if not job_data:
+            return jsonify({"error": "No job data provided"}), 400
+        
+        job_id = save_job_data(job_data)
+        return jsonify({"success": True, "message": "Job saved successfully", "job_id": job_id}), 201
+    except Exception as e:
+        print(f"Error saving job: {str(e)}")
+        return jsonify({"error": f"Failed to save job: {str(e)}"}), 500
+
+@app.route('/get_saved_jobs', methods=['GET'])
+def get_saved_jobs():
+    """Get all saved jobs"""
+    return jsonify(saved_jobs), 200
+
+@app.route('/get_ai_models', methods=['GET'])
+def get_ai_models():
+    """Get all available AI models with pricing info"""
+    return jsonify(AI_MODELS), 200
 
 @app.route('/analyze_job_posting', methods=['POST', 'GET'])
 def analyze_job_posting():
     print("Analyzing job posting")
     description = None
+    model = "mistralai/mixtral-8x7b-instruct"  # Default free model
     
     # Handle both POST JSON data and query parameters
     if request.method == 'POST' and request.is_json:
         data = request.json
         description = data.get('description')
+        model = data.get('model', model)  # Get selected model
     else:
         description = request.args.get('description')
+        model = request.args.get('model', model)  # Get selected model from query params
     
     if not description:
         return jsonify({'error': 'Description is required'}), 400
@@ -30,11 +111,11 @@ def analyze_job_posting():
     def generate():
         summary = ""
         # Initial event to establish connection
-        yield "data: {\"text\": \"Starting analysis...\", \"complete\": false}\n\n"
+        yield f"data: {{\"text\": \"Starting analysis with {model}...\", \"complete\": false}}\n\n"
         time.sleep(0.1)  # Small delay to ensure client receives initial message
         
         try:
-            ai_stream = stream_ai_summary(description)
+            ai_stream = stream_ai_summary(description, model=model)
             for chunk in ai_stream:
                 if hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
                     delta = chunk.choices[0].delta.content
@@ -91,6 +172,7 @@ def scrape_job_url():
     try:
         data = request.json
         url = data.get('url')
+        model = data.get('model', "mistralai/mixtral-8x7b-instruct")  # Get model parameter
         
         if not url:
             return jsonify({'error': 'URL is required'}), 400
@@ -106,12 +188,12 @@ def scrape_job_url():
             job_data = scrape_job_posting(url)
             print(f"Scraped job data: {job_data.keys()}")
             
-            # Always enhance with Gemini API if we have a description
+            # Always enhance with AI API if we have a description
             if job_data.get("description"):
-                print("Enhancing scraped data with Gemini API...")
+                print(f"Enhancing scraped data with {model}...")
                 
-                # Use Gemini to analyze the description
-                ai_stream = stream_ai_summary(job_data["description"])
+                # Use selected model to analyze the description
+                ai_stream = stream_ai_summary(job_data["description"], model=model)
                 summary = ""
                 for chunk in ai_stream:
                     if hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
@@ -128,7 +210,7 @@ def scrape_job_url():
                     else:
                         ai_data = json.loads(summary)
                     
-                    print("AI data from Gemini:", ai_data.keys() if isinstance(ai_data, dict) else "Not a dictionary")
+                    print("AI data:", ai_data.keys() if isinstance(ai_data, dict) else "Not a dictionary")
                     
                     # Merge AI data with scraped data, but keep scraped data if it's already populated
                     if isinstance(ai_data, dict):
@@ -154,7 +236,7 @@ def scrape_job_url():
                             # Call the AI again with this explicit prompt
                             from aiSummary import client
                             response = client.chat.completions.create(
-                                model="google/gemini-2.0-flash-lite-001",
+                                model=model,  # Use the selected model here too
                                 messages=[
                                     {"role": "system", "content": "You are an expert job posting analyzer."},
                                     {"role": "user", "content": explicit_prompt},
@@ -185,18 +267,21 @@ def scrape_job_url():
             if not job_data.get("keywords") or len(job_data["keywords"]) == 0:
                 job_data["keywords"] = ["Skills", "Experience", "Communication"]
             
+            # Add source URL to the job data
+            job_data["url"] = url
+            
             print("Job analysis complete, returning data")
             return jsonify(job_data), 200
         except Exception as scrape_error:
             print(f"Error during scraping process: {str(scrape_error)}")
             
-            # Try a direct Gemini analysis as a last resort
+            # Try a direct AI analysis as a last resort
             try:
                 from aiSummary import client
                 
-                print("Attempting direct URL analysis with Gemini")
+                print(f"Attempting direct URL analysis with {model}")
                 response = client.chat.completions.create(
-                    model="google/gemini-2.0-flash-lite-001",
+                    model=model,  # Use the selected model
                     messages=[
                         {"role": "system", "content": "You are an expert job posting analyzer."},
                         {"role": "user", "content": f"Analyze this job posting URL: {url}\n\nExtract and return a JSON object with these keys: title, company, requirements (array), responsibilities (array), keywords (array), location, salary. If you can't access the URL directly, make educated guesses based on the URL itself."},
@@ -205,7 +290,9 @@ def scrape_job_url():
                 )
                 
                 result = json.loads(response.choices[0].message.content)
-                print("Successfully got direct analysis from Gemini")
+                # Add source URL to the result
+                result["url"] = url
+                print("Successfully got direct analysis")
                 return jsonify(result), 200
             except Exception as ai_error:
                 print(f"Final fallback also failed: {str(ai_error)}")
@@ -222,6 +309,7 @@ def analyze_resume():
     
     resume_file = request.files.get('resume')
     analysis_data_json = request.form.get('analysisData')
+    model = request.form.get('model', "mistralai/mixtral-8x7b-instruct")  # Get model from form data
 
     if not resume_file or not analysis_data_json:
         return jsonify({"error": "Missing required files or data"}), 400
@@ -254,13 +342,26 @@ def analyze_resume():
     if not extracted_text.strip():
         return jsonify({"error": "Could not extract text from the resume file."}), 400
     
-    # Get AI suggestions with the improved function
+    # Get AI suggestions with the selected model
     try:
-        result = get_ai_resume_suggestions(analysis_data, extracted_text)
+        result = get_ai_resume_suggestions(analysis_data, extracted_text, model=model)
         return jsonify(result), 200
     except Exception as e:
         print(f"Error generating suggestions: {str(e)}")
         return jsonify({"error": f"Error analyzing resume: {str(e)}"}), 500
 
+@app.route('/parse_resume', methods=['POST'])
+def parse_resume():
+    return route_parse_resume()
+
+@app.route('/generate_resume_suggestions', methods=['POST'])
+def generate_resume_suggestions():
+    return route_generate_suggestions()
+
+@app.route('/export_resume', methods=['POST'])
+def export_resume():
+    return route_export_resume()
+
 if __name__ == '__main__':
     app.run(debug=True, port=5317)
+
