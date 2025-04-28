@@ -58,6 +58,14 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  const [initialHtml, setInitialHtml] = useState<string>("");
+
+  
+  useEffect(() => {
+    if (documentLoaded && initialHtml && editorRef.current) {
+      editorRef.current.innerHTML = initialHtml;
+    }
+  }, [documentLoaded, initialHtml]);
   
   // Load job data from localStorage if not provided as prop
   useEffect(() => {
@@ -93,15 +101,17 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({
     
     try {
       // Call the backend API to parse the DOCX file
+
+      console.log("parsing")
       const result = await parseResumeFile(file);
+      console.log("the result", result.html)
       
+    
       // Set the parsed HTML content to the editor
-      if (editorRef.current) {
-        editorRef.current.innerHTML = result.html;
-      }
-      
-      setDocumentLoaded(true);
-      
+
+      setInitialHtml(result.html)      
+    
+      setDocumentLoaded(true)
       // Generate suggestions if AI suggestions are enabled
       if (aiSuggestions) {
         await fetchSuggestions();

@@ -24,7 +24,9 @@ def parse_docx_content(file_data):
         # Parse DOCX content
         result = mammoth.convert_to_html(file_data)
         html = result.value
-        
+
+        print(f"file data in HTML: {html}")
+
         # You may want to apply additional transformations to the HTML here
         
         return {
